@@ -3,20 +3,5 @@
         "name": "John",
         "age": 30,
         "city": "New York"
-    },
-    "data2": {
-        "name": "John",
-        "age": 30,
-        "city": "New York"
-    },
-    "data3": {
-        "name": "John",
-        "age": 30,
-        "city": "New York"
-    },
-    "data4": {
-        "name": "John",
-        "age": 30,
-        "city": "New York"
     }
 }
