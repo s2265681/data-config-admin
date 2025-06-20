@@ -59,7 +59,7 @@ async function syncS3ToGithubMulti(bucket, key, fileName) {
   try {
     console.log(`🔄 开始同步文件: ${fileName} (${key})`);
     
-    // 从S3获取文件内容
+    // 从S3获取文件内容和元数据
     const getObjectCommand = new GetObjectCommand({
       Bucket: bucket,
       Key: key
@@ -67,6 +67,16 @@ async function syncS3ToGithubMulti(bucket, key, fileName) {
     
     const s3Response = await s3Client.send(getObjectCommand);
     const fileContent = await streamToString(s3Response.Body);
+    
+    // 检查文件来源，避免循环同步
+    const metadata = s3Response.Metadata || {};
+    const syncedFrom = metadata['synced-from'];
+    
+    // 如果文件是从GitHub同步过来的，跳过同步回GitHub
+    if (syncedFrom && (syncedFrom.includes('github') || syncedFrom.includes('main') || syncedFrom.includes('staging'))) {
+      console.log(`⏭️  跳过同步: ${fileName} 来源为GitHub (${syncedFrom})，避免循环同步`);
+      return;
+    }
     
     // 获取环境信息
     const environment = key.includes('/production/') ? 'production' : 'staging';
@@ -105,7 +115,7 @@ async function syncS3ToGithubMulti(bucket, key, fileName) {
     }
     
     // 生成详细的提交信息
-    const commitMessage = generateCommitMessage(fileName, key, environment, s3Response.Metadata);
+    const commitMessage = generateCommitMessage(fileName, key, environment, metadata);
     
     // 更新GitHub文件
     await octokit.repos.createOrUpdateFileContents({
@@ -183,7 +193,7 @@ function generateCommitMessage(fileName, s3Key, environment, metadata) {
   const envLabel = environment === 'production' ? 'PRODUCTION' : 'STAGING';
   const timestamp = new Date().toISOString();
   
-  let message = `🔄 [${envLabel}] 同步文件: ${fileName}`;
+  let message = `🔄 [${envLabel}] S3同步到GitHub: ${fileName}`;
   message += `\n\n📁 S3路径: ${s3Key}`;
   message += `\n📂 GitHub路径: configuration/${fileName}`;
   message += `\n⏰ 同步时间: ${timestamp}`;

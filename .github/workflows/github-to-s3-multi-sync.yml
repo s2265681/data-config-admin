@@ -1,4 +1,4 @@
-name: Sync Multiple Files to S3
+name: Sync Multiple Files to S3 Staging
 
 on:
   push:
@@ -37,13 +37,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Sync multiple files to S3
+      - name: Sync multiple files to S3 Staging
         run: npm run sync-to-s3-multi
         env:
           S3_BUCKET: rock-service-data
           AWS_REGION: ap-southeast-2
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
+          SYNC_SOURCE: github-staging
           
       - name: Verify sync
         run: |
@@ -56,4 +57,5 @@ jobs:
           echo "📁 环境: staging"
           echo "📂 源文件夹: configuration/"
           echo "🔗 Commit: ${{ github.sha }}"
-          echo "👤 提交者: ${{ github.actor }}" 
+          echo "👤 提交者: ${{ github.actor }}"
+          echo "🔄 同步方向: GitHub → S3 (单向)" 

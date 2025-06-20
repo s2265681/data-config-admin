@@ -11,10 +11,12 @@ async function syncToS3Production() {
     const fileManager = new FileManager();
     const bucket = process.env.S3_BUCKET || 'rock-service-data';
     const environment = 'production';
+    const syncSource = process.env.SYNC_SOURCE || 'github-main';
     
     console.log(`🚀 开始同步多文件到生产环境S3: ${bucket}`);
     console.log(`📁 环境: ${environment}`);
     console.log(`🌍 区域: ${process.env.AWS_REGION || 'ap-southeast-2'}`);
+    console.log(`🔄 同步来源: ${syncSource}`);
     console.log('');
     
     const files = fileManager.getFiles();
@@ -56,12 +58,13 @@ async function syncToS3Production() {
           Body: fileContent,
           ContentType: 'application/json',
           Metadata: {
-            'synced-from': 'github-main',
+            'synced-from': syncSource,
             'synced-at': new Date().toISOString(),
             'commit-sha': process.env.GITHUB_SHA || 'unknown',
             'environment': environment,
             'file-hash': fileHash,
-            'source-file': fileName
+            'source-file': fileName,
+            'sync-direction': 'github-to-s3'
           }
         });
         
@@ -126,6 +129,7 @@ async function syncToS3Production() {
     }
     
     console.log('\n🚀 生产环境多文件同步完成！');
+    console.log('🔄 同步方向: GitHub → S3 (单向，避免循环同步)');
     
     // 如果有失败的文件，返回错误状态
     if (results.failed.length > 0) {

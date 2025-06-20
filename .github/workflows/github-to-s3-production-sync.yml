@@ -4,15 +4,13 @@ on:
   push:
     branches:
       - main
-    # 临时注释掉路径限制，用于测试
-    # paths:
-    #   - 'configuration/*.json'
+    paths:
+      - 'configuration/*.json'
   pull_request:
     branches:
       - main
-    # 临时注释掉路径限制，用于测试
-    # paths:
-    #   - 'configuration/*.json'
+    paths:
+      - 'configuration/*.json'
 
 jobs:
   sync-to-s3-production:
@@ -46,6 +44,7 @@ jobs:
           AWS_REGION: ap-southeast-2
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
+          SYNC_SOURCE: github-main
           
       - name: Verify production sync
         run: |
@@ -61,4 +60,5 @@ jobs:
           echo "🔗 Commit: ${{ github.sha }}"
           echo "👤 提交者: ${{ github.actor }}"
           echo "📄 同步文件:"
-          ls -la configuration/*.json 
+          ls -la configuration/*.json
+          echo "🔄 同步方向: GitHub → S3 (单向)" 
