@@ -8,7 +8,7 @@
     "api": {
       "version": "v2",
       "timeout": 30,
-      "retries": 3
+      "retries": 31212
     },
     "features": {
       "cache_enabled": true,
