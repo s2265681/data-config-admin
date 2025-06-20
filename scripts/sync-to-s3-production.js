@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const FileManager = require('../utils/file-manager');
 const crypto = require('crypto');
 
@@ -13,7 +13,7 @@ async function syncToS3Production() {
     const environment = 'production';
     const syncSource = process.env.SYNC_SOURCE || 'github-main';
     
-    console.log(`🚀 开始同步多文件到生产环境S3: ${bucket}`);
+    console.log(`🚀 开始智能同步多文件到生产环境S3: ${bucket}`);
     console.log(`📁 环境: ${environment}`);
     console.log(`🌍 区域: ${process.env.AWS_REGION || 'ap-southeast-2'}`);
     console.log(`🔄 同步来源: ${syncSource}`);
@@ -22,7 +22,8 @@ async function syncToS3Production() {
     const files = fileManager.getFiles();
     const results = {
       success: [],
-      failed: []
+      failed: [],
+      skipped: []
     };
     
     for (const file of files) {
@@ -31,25 +32,54 @@ async function syncToS3Production() {
       const s3Key = file.production_path;
       
       try {
-        console.log(`📄 处理文件: ${shortName}`);
+        console.log(`📄 检查文件: ${shortName}`);
         console.log(`   📂 本地路径: ${fileName}`);
         console.log(`   ☁️  S3路径: ${s3Key}`);
         
         // 检查本地文件是否存在
         if (!fileManager.fileExists(fileName)) {
           console.log(`   ⚠️  本地文件不存在，跳过: ${fileName}`);
-          results.failed.push({
+          results.skipped.push({
             file: shortName,
-            error: '本地文件不存在'
+            reason: '本地文件不存在'
           });
           continue;
         }
         
-        // 读取文件内容
+        // 读取本地文件内容
         const fileContent = fileManager.readFile(fileName);
+        const localHash = crypto.createHash('sha256').update(fileContent).digest('hex');
         
-        // 计算文件哈希
-        const fileHash = crypto.createHash('sha256').update(fileContent).digest('hex');
+        // 检查S3上文件是否存在及其哈希
+        let s3Hash = null;
+        let s3Exists = false;
+        try {
+          const headCommand = new HeadObjectCommand({
+            Bucket: bucket,
+            Key: s3Key
+          });
+          const headResult = await s3Client.send(headCommand);
+          s3Exists = true;
+          s3Hash = headResult.Metadata?.['file-hash'];
+          console.log(`   ☁️  S3文件存在，哈希: ${s3Hash ? s3Hash.substring(0, 8) + '...' : '无'}`);
+        } catch (error) {
+          if (error.name === 'NotFound') {
+            console.log(`   ☁️  S3文件不存在，需要上传`);
+          } else {
+            throw error;
+          }
+        }
+        
+        // 比较哈希，判断是否需要同步
+        if (s3Exists && s3Hash === localHash) {
+          console.log(`   ⏭️  文件未变更，跳过同步`);
+          results.skipped.push({
+            file: shortName,
+            reason: '文件未变更',
+            hash: localHash.substring(0, 8) + '...'
+          });
+          continue;
+        }
         
         // 上传到S3生产环境
         const putObjectCommand = new PutObjectCommand({
@@ -62,7 +92,7 @@ async function syncToS3Production() {
             'synced-at': new Date().toISOString(),
             'commit-sha': process.env.GITHUB_SHA || 'unknown',
             'environment': environment,
-            'file-hash': fileHash,
+            'file-hash': localHash,
             'source-file': fileName,
             'sync-direction': 'github-to-s3'
           }
@@ -74,7 +104,8 @@ async function syncToS3Production() {
         results.success.push({
           file: shortName,
           s3Key: s3Key,
-          hash: fileHash
+          hash: localHash.substring(0, 8) + '...',
+          changed: s3Exists ? '是' : '新增'
         });
         
       } catch (error) {
@@ -89,15 +120,23 @@ async function syncToS3Production() {
     }
     
     // 输出同步结果
-    console.log('📊 同步结果汇总:');
-    console.log('================');
+    console.log('📊 智能同步结果汇总:');
+    console.log('====================');
     console.log(`✅ 成功: ${results.success.length} 个文件`);
     console.log(`❌ 失败: ${results.failed.length} 个文件`);
+    console.log(`⏭️  跳过: ${results.skipped.length} 个文件`);
     
     if (results.success.length > 0) {
       console.log('\n✅ 成功同步的文件:');
       results.success.forEach(result => {
-        console.log(`   📄 ${result.file} → ${result.s3Key}`);
+        console.log(`   📄 ${result.file} → ${result.s3Key} (${result.changed})`);
+      });
+    }
+    
+    if (results.skipped.length > 0) {
+      console.log('\n⏭️  跳过的文件:');
+      results.skipped.forEach(result => {
+        console.log(`   📄 ${result.file}: ${result.reason}${result.hash ? ` (${result.hash})` : ''}`);
       });
     }
     
@@ -109,27 +148,29 @@ async function syncToS3Production() {
     }
     
     // 验证上传
-    console.log('\n🔍 验证生产环境S3文件:');
-    console.log('======================');
-    try {
-      const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
-      const listCommand = new ListObjectsV2Command({
-        Bucket: bucket,
-        Prefix: 'config/production/'
-      });
-      
-      const listResult = await s3Client.send(listCommand);
-      if (listResult.Contents) {
-        listResult.Contents.forEach(obj => {
-          console.log(`   📄 ${obj.Key} (${obj.Size} bytes)`);
+    if (results.success.length > 0) {
+      console.log('\n🔍 验证生产环境S3文件:');
+      console.log('======================');
+      try {
+        const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
+        const listCommand = new ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: 'config/production/'
         });
+        
+        const listResult = await s3Client.send(listCommand);
+        if (listResult.Contents) {
+          listResult.Contents.forEach(obj => {
+            console.log(`   📄 ${obj.Key} (${obj.Size} bytes)`);
+          });
+        }
+      } catch (error) {
+        console.error('   ⚠️  验证失败:', error.message);
       }
-    } catch (error) {
-      console.error('   ⚠️  验证失败:', error.message);
     }
     
-    console.log('\n🚀 生产环境多文件同步完成！');
-    console.log('🔄 同步方向: GitHub → S3 (单向，避免循环同步)');
+    console.log('\n🚀 生产环境智能多文件同步完成！');
+    console.log('🔄 同步方向: GitHub → S3 (只同步变更文件)');
     
     // 如果有失败的文件，返回错误状态
     if (results.failed.length > 0) {
