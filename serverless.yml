@@ -1,0 +1,62 @@
+service: data-config-admin-sync
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-southeast-2
+  environment:
+    GITHUB_TOKEN: ${env:GITHUB_TOKEN, ''}
+    GITHUB_REPO: s2265681/data-config-admin
+    GITHUB_BRANCH: staging
+    S3_BUCKET: rock-service-data
+    S3_KEY: config/staging/test.json
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource: 
+            - arn:aws:s3:::rock-service-data/config/staging/*
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "*"
+
+functions:
+  s3ToGithubSync:
+    handler: handlers/s3-to-github.handler
+    events:
+      - s3:
+          bucket: rock-service-data
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: config/staging/
+            - suffix: test.json
+          existing: true
+      - s3:
+          bucket: rock-service-data
+          event: s3:ObjectRemoved:*
+          rules:
+            - prefix: config/staging/
+            - suffix: test.json
+          existing: true
+
+plugins:
+  - serverless-dotenv-plugin
+
+custom:
+  dotenv:
+    path: .env
+    include:
+      - GITHUB_TOKEN
+      - GITHUB_REPO
+      - GITHUB_BRANCH
+      - S3_BUCKET
+      - S3_KEY 

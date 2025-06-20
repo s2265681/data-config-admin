@@ -1,0 +1,36 @@
+{
+  "name": "data-config-admin",
+  "version": "1.0.0",
+  "description": "双向同步AWS S3和GitHub仓库的配置文件",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "serverless deploy",
+    "test": "jest",
+    "sync-to-github": "node scripts/sync-to-github.js",
+    "sync-to-s3": "node scripts/sync-to-s3.js",
+    "monitor": "node scripts/monitor.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.450.0",
+    "@aws-sdk/s3-request-presigner": "^3.450.0",
+    "@octokit/rest": "^20.0.2",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "serverless": "^3.38.0",
+    "serverless-dotenv-plugin": "^6.0.0"
+  },
+  "keywords": [
+    "aws",
+    "s3",
+    "github",
+    "sync",
+    "config"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+} 
