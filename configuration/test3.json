@@ -15,10 +15,5 @@
       "cache_size": "512MB",
       "compression_enabled": true
     }
-  },
-  "metadata": {
-    "created_at": "2025-06-20T14:00:00Z",
-    "version": "1.0.0",
-    "description": "第三个配置文件"
   }
 } 
