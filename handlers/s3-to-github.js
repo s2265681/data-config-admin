@@ -2,7 +2,7 @@ const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { Octokit } = require('@octokit/rest');
 const crypto = require('crypto');
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+const s3Client = new S3Client({ region: process.env.AWS_REGION || 'ap-southeast-2' });
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN
 });

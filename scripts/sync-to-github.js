@@ -17,6 +17,7 @@ async function syncToGithub() {
     const branch = process.env.GITHUB_BRANCH || 'staging';
     
     console.log(`开始从S3同步文件到GitHub: ${bucket}/${key}`);
+    console.log(`使用区域: ${process.env.AWS_REGION || 'ap-southeast-2'}`);
     
     // 从S3获取文件内容
     const getObjectCommand = new GetObjectCommand({

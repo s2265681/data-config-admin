@@ -45,7 +45,7 @@ cp env.example .env
 
 ```env
 # AWS配置
-AWS_REGION=us-east-1
+AWS_REGION=ap-southeast-2
 AWS_ACCESS_KEY_ID=your_aws_access_key_id
 AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 

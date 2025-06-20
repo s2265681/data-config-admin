@@ -15,7 +15,7 @@ cp env.example .env
 
 编辑 `.env` 文件，填入你的配置：
 ```env
-AWS_REGION=us-east-1
+AWS_REGION=ap-southeast-2
 AWS_ACCESS_KEY_ID=your_aws_access_key_id
 AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 GITHUB_TOKEN=your_github_personal_access_token

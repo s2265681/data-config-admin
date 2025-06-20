@@ -3,7 +3,7 @@ const { Octokit } = require('@octokit/rest');
 const fs = require('fs');
 const path = require('path');
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+const s3Client = new S3Client({ region: process.env.AWS_REGION || 'ap-southeast-2' });
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN
 });

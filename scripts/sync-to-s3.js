@@ -2,7 +2,9 @@ const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const fs = require('fs');
 const path = require('path');
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+const s3Client = new S3Client({ 
+  region: process.env.AWS_REGION || 'ap-southeast-2'  // 确保使用正确的区域
+});
 
 async function syncToS3() {
   try {
@@ -11,6 +13,7 @@ async function syncToS3() {
     const filePath = path.join(process.cwd(), 'test.json');
     
     console.log(`开始同步文件到S3: ${bucket}/${key}`);
+    console.log(`使用区域: ${process.env.AWS_REGION || 'ap-southeast-2'}`);
     
     // 检查本地文件是否存在
     if (!fs.existsSync(filePath)) {
