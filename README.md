@@ -315,3 +315,10 @@ npx serverless logs -f s3ToGithubSync --tail
 
 查看同步状态 
 npm run monitor-multi
+
+
+多文件监控
+
+测试 case
+
+1、修改test.json 文件在s3中只更新这一个文件， 其他文件不更新， 同样修改了test.json git 中也只有这一个的更新记录， 并且提交信息为 test.json 进行了修改 
