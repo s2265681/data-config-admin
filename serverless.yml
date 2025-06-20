@@ -22,6 +22,10 @@ provider:
           Resource: 
             - arn:aws:s3:::rock-service-data/config/staging/*
             - arn:aws:s3:::rock-service-data/config/production/*
+            - arn:aws:s3:::rock-service-data/config2/staging/*
+            - arn:aws:s3:::rock-service-data/config2/production/*
+            - arn:aws:s3:::rock-service-data/config3/staging/*
+            - arn:aws:s3:::rock-service-data/config3/production/*
         - Effect: Allow
           Action:
             - logs:CreateLogGroup
@@ -31,42 +35,15 @@ provider:
           Resource: "*"
 
 functions:
-  # 只保留多文件同步Lambda函数 - 处理所有JSON文件
+  # 多文件同步Lambda函数 - 事件配置将由插件动态生成
   s3ToGithubMultiSync:
     handler: handlers/s3-to-github-multi.handler
     logRetentionInDays: 7
-    events:
-      - s3:
-          bucket: rock-service-data
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: config/staging/
-            - suffix: .json
-          existing: true
-      - s3:
-          bucket: rock-service-data
-          event: s3:ObjectRemoved:*
-          rules:
-            - prefix: config/staging/
-            - suffix: .json
-          existing: true
-      - s3:
-          bucket: rock-service-data
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: config/production/
-            - suffix: .json
-          existing: true
-      - s3:
-          bucket: rock-service-data
-          event: s3:ObjectRemoved:*
-          rules:
-            - prefix: config/production/
-            - suffix: .json
-          existing: true
+    # events 配置将由 DynamicS3EventsPlugin 动态生成
 
 plugins:
   - serverless-dotenv-plugin
+  - ./plugins/dynamic-s3-events.js
 
 custom:
   dotenv:
@@ -74,4 +51,7 @@ custom:
     include:
       - GITHUB_TOKEN
       - GITHUB_REPO
-      - S3_BUCKET 
+      - S3_BUCKET
+  
+  # 动态生成S3资源ARN
+  s3ResourceArns: ${file(./utils/generate-s3-arns.js)} 

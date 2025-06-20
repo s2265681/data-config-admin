@@ -9,17 +9,46 @@
     {
       "name": "configuration/test2.json",
       "description": "第二个配置文件",
-      "staging_path": "config/staging/test2.json",
-      "production_path": "config/production/test2.json"
+      "staging_path": "config2/staging/test2.json",
+      "production_path": "config2/production/test2.json"
     },
     {
       "name": "configuration/test3.json",
       "description": "第三个配置文件",
-      "staging_path": "config/staging/test3.json",
-      "production_path": "config/production/test3.json"
+      "staging_path": "config2/staging/test3.json",
+      "production_path": "config2/production/test3.json"
     }
   ],
-  "environments": {
+  "monitoring": {
+    "s3_paths": [
+      {
+        "prefix": "config/staging/",
+        "suffix": ".json",
+        "environment": "staging"
+      },
+      {
+        "prefix": "config/production/",
+        "suffix": ".json",
+        "environment": "production"
+      },
+      {
+        "prefix": "config2/staging/",
+        "suffix": ".json",
+        "environment": "staging"
+      },
+      {
+        "prefix": "config2/production/",
+        "suffix": ".json",
+        "environment": "production"
+      },
+      {
+        "prefix": "config3/staging/",
+        "suffix": ".json",
+        "environment": "staging"
+      }
+    ]
+  },
+  "environments": { 
     "staging": {
       "s3_prefix": "config/staging/",
       "github_branch": "staging"

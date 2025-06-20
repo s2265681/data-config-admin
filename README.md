@@ -323,4 +323,7 @@ npm run monitor-multi
 
 1、修改test.json 文件在s3中只更新这一个文件， 其他文件不更新， 同样修改了test.json git 中也只有这一个的更新记录， 并且提交信息为 test.json 进行了修改 
 
-订单
+
+
+新增监控的文件， 修改filter monitoring 然后使用下面命令进行更新
+npm run deploy-with-config

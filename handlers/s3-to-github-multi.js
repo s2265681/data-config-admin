@@ -1,6 +1,7 @@
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { Octokit } = require('@octokit/rest');
 const crypto = require('crypto');
+const ConfigManager = require('../utils/config-manager');
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'ap-southeast-2' });
 const octokit = new Octokit({
@@ -11,12 +12,28 @@ exports.handler = async (event) => {
   console.log('S3多文件事件触发:', JSON.stringify(event, null, 2));
   
   try {
+    const configManager = new ConfigManager();
+    
+    // 验证配置
+    const validation = configManager.validateConfig();
+    if (!validation.isValid) {
+      console.error('配置验证失败:', validation.errors);
+      throw new Error('配置验证失败');
+    }
+    
     for (const record of event.Records) {
       const bucket = record.s3.bucket.name;
       const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
       const eventName = record.eventName;
       
       console.log(`处理S3事件: ${eventName}, Bucket: ${bucket}, Key: ${key}`);
+      
+      // 检查路径是否在监控范围内
+      const pathInfo = configManager.isPathMonitored(key);
+      if (!pathInfo.monitored) {
+        console.log(`跳过非监控路径: ${key}`);
+        continue;
+      }
       
       // 提取文件名
       const fileName = extractFileName(key);
@@ -26,9 +43,9 @@ exports.handler = async (event) => {
       }
       
       if (eventName.startsWith('ObjectCreated')) {
-        await syncS3ToGithubMulti(bucket, key, fileName);
+        await syncS3ToGithubMulti(bucket, key, fileName, pathInfo, configManager);
       } else if (eventName.startsWith('ObjectRemoved')) {
-        await removeFromGithubMulti(key, fileName);
+        await removeFromGithubMulti(key, fileName, pathInfo, configManager);
       }
     }
     
@@ -55,9 +72,10 @@ function extractFileName(s3Key) {
   return null;
 }
 
-async function syncS3ToGithubMulti(bucket, key, fileName) {
+async function syncS3ToGithubMulti(bucket, key, fileName, pathInfo, configManager) {
   try {
     console.log(`🔄 开始同步文件: ${fileName} (${key})`);
+    console.log(`📁 环境: ${pathInfo.environment}, 路径: ${pathInfo.prefix}`);
     
     // 从S3获取文件内容和元数据
     const getObjectCommand = new GetObjectCommand({
@@ -113,8 +131,9 @@ async function syncS3ToGithubMulti(bucket, key, fileName) {
     }
     
     // 获取环境信息
-    const environment = key.includes('/production/') ? 'production' : 'staging';
-    const branch = environment === 'production' ? 'main' : 'staging';
+    const environment = pathInfo.environment;
+    const environments = configManager.getEnvironments();
+    const branch = environment === 'production' ? environments.production.github_branch : environments.staging.github_branch;
     
     // 获取GitHub仓库信息
     const [owner, repo] = process.env.GITHUB_REPO.split('/');
@@ -171,13 +190,14 @@ async function syncS3ToGithubMulti(bucket, key, fileName) {
   }
 }
 
-async function removeFromGithubMulti(key, fileName) {
+async function removeFromGithubMulti(key, fileName, pathInfo, configManager) {
   try {
     console.log(`🗑️  开始删除文件: ${fileName} (${key})`);
     
     // 获取环境信息
-    const environment = key.includes('/production/') ? 'production' : 'staging';
-    const branch = environment === 'production' ? 'main' : 'staging';
+    const environment = pathInfo.environment;
+    const environments = configManager.getEnvironments();
+    const branch = environment === 'production' ? environments.production.github_branch : environments.staging.github_branch;
     
     const [owner, repo] = process.env.GITHUB_REPO.split('/');
     
