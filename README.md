@@ -9,16 +9,32 @@
 - 🚀 **自动触发**: 基于事件驱动的同步机制
 - 🔒 **安全可靠**: 支持内容校验和冲突检测
 - 📊 **日志记录**: 完整的同步日志和状态追踪
+- 🌍 **多环境支持**: 支持staging和production环境
 
 ## 架构说明
 
+### 环境配置
+
+#### Staging环境
+- **S3路径**: `s3://rock-service-data/config/staging/test.json`
+- **GitHub分支**: `staging`
+- **同步方向**: 双向同步
+
+#### Production环境  
+- **S3路径**: `s3://rock-service-data/config/production/test.json`
+- **GitHub分支**: `main`
+- **同步方向**: 
+  - GitHub → S3: 当代码合并到main分支时
+  - S3 → GitHub: 当生产环境S3文件变化时
+
 ### S3 → GitHub 同步
-- AWS Lambda函数监控S3 `s3://rock-service-data/config/staging/test.json` 文件变化
-- 当文件创建、更新或删除时，自动同步到GitHub仓库的staging分支
+- AWS Lambda函数监控S3文件变化
+- 当文件创建、更新或删除时，自动同步到对应GitHub分支
 
 ### GitHub → S3 同步  
 - GitHub Actions工作流监控仓库中`test.json`文件变化
-- 当文件提交到staging分支时，自动同步到S3对应位置
+- Staging: 当文件提交到staging分支时，同步到staging S3
+- Production: 当文件合并到main分支时，同步到production S3
 
 ## 快速开始
 
@@ -85,44 +101,66 @@ npm run deploy
 # 从S3同步到GitHub
 npm run sync-to-github
 
-# 从GitHub同步到S3  
+# 从GitHub同步到S3 (staging)
 npm run sync-to-s3
+
+# 从GitHub同步到S3 (production)
+npm run sync-to-s3-production
 ```
 
 ### 自动同步
 
 系统会自动监控文件变化并触发同步：
 
-1. **S3文件变化** → 自动同步到GitHub
-2. **GitHub文件变化** → 自动同步到S3
+1. **S3文件变化** → 自动同步到GitHub对应分支
+2. **GitHub文件变化** → 自动同步到S3对应环境
+
+### 工作流程
+
+#### 开发流程
+1. 在`staging`分支修改`test.json`
+2. 推送到GitHub → 自动同步到`staging` S3
+3. 创建Pull Request到`main`分支
+4. 代码审查通过后合并到`main`
+5. 自动同步到`production` S3
+
+#### 生产环境更新
+1. 直接修改`production` S3文件
+2. 自动同步到GitHub `main`分支
 
 ## 文件结构
 
 ```
 data-config-admin/
 ├── handlers/
-│   └── s3-to-github.js      # S3到GitHub同步处理器
+│   ├── s3-to-github.js              # Staging环境S3到GitHub同步处理器
+│   └── s3-to-github-production.js   # Production环境S3到GitHub同步处理器
 ├── scripts/
-│   ├── sync-to-github.js    # GitHub同步脚本
-│   └── sync-to-s3.js        # S3同步脚本
+│   ├── sync-to-github.js            # GitHub同步脚本
+│   ├── sync-to-s3.js                # Staging S3同步脚本
+│   ├── sync-to-s3-production.js     # Production S3同步脚本
+│   └── monitor.js                   # 监控脚本
 ├── .github/workflows/
-│   └── github-to-s3-sync.yml # GitHub Actions工作流
-├── serverless.yml           # Serverless配置
-├── package.json             # 项目依赖
-├── test.json               # 配置文件
-└── README.md               # 项目说明
+│   ├── github-to-s3-sync.yml        # Staging环境GitHub Actions工作流
+│   └── github-to-s3-production-sync.yml # Production环境GitHub Actions工作流
+├── serverless.yml                   # Serverless配置
+├── package.json                     # 项目依赖
+├── test.json                       # 配置文件
+└── README.md                       # 项目说明
 ```
 
 ## 配置说明
 
 ### S3配置
 - **Bucket**: `rock-service-data`
-- **路径**: `config/staging/test.json`
+- **Staging路径**: `config/staging/test.json`
+- **Production路径**: `config/production/test.json`
 - **监控事件**: 文件创建、更新、删除
 
 ### GitHub配置
 - **仓库**: `s2265681/data-config-admin`
-- **分支**: `staging`
+- **Staging分支**: `staging`
+- **Production分支**: `main`
 - **文件**: `test.json`
 
 ## 故障排除
@@ -145,8 +183,11 @@ data-config-admin/
 ### 日志查看
 
 ```bash
-# 查看Lambda日志
+# 查看Staging Lambda日志
 serverless logs -f s3ToGithubSync
+
+# 查看Production Lambda日志
+serverless logs -f s3ToGithubProductionSync
 
 # 查看GitHub Actions日志
 # 在GitHub仓库的Actions页面查看
