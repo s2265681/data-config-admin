@@ -1,7 +1,7 @@
 {
   "config": {
     "database": {
-      "host": "localhost12133333",
+      "host": "123sss",
       "port": 5432,
       "name": "test_db"
     },
