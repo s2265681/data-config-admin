@@ -9,9 +9,7 @@ provider:
   environment:
     GITHUB_TOKEN: ${env:GITHUB_TOKEN, ''}
     GITHUB_REPO: s2265681/data-config-admin
-    GITHUB_BRANCH: staging
     S3_BUCKET: rock-service-data
-    S3_KEY: config/staging/test.json
   iam:
     role:
       statements:
@@ -31,40 +29,37 @@ provider:
           Resource: "*"
 
 functions:
-  s3ToGithubSync:
-    handler: handlers/s3-to-github.handler
+  # 只保留多文件同步Lambda函数 - 处理所有JSON文件
+  s3ToGithubMultiSync:
+    handler: handlers/s3-to-github-multi.handler
     events:
       - s3:
           bucket: rock-service-data
           event: s3:ObjectCreated:*
           rules:
             - prefix: config/staging/
-            - suffix: test.json
+            - suffix: .json
           existing: true
       - s3:
           bucket: rock-service-data
           event: s3:ObjectRemoved:*
           rules:
             - prefix: config/staging/
-            - suffix: test.json
+            - suffix: .json
           existing: true
-          
-  s3ToGithubProductionSync:
-    handler: handlers/s3-to-github-production.handler
-    events:
       - s3:
           bucket: rock-service-data
           event: s3:ObjectCreated:*
           rules:
             - prefix: config/production/
-            - suffix: test.json
+            - suffix: .json
           existing: true
       - s3:
           bucket: rock-service-data
           event: s3:ObjectRemoved:*
           rules:
             - prefix: config/production/
-            - suffix: test.json
+            - suffix: .json
           existing: true
 
 plugins:
@@ -76,6 +71,4 @@ custom:
     include:
       - GITHUB_TOKEN
       - GITHUB_REPO
-      - GITHUB_BRANCH
-      - S3_BUCKET
-      - S3_KEY 
+      - S3_BUCKET 

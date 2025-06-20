@@ -10,7 +10,9 @@
     "sync-to-github": "node scripts/sync-to-github.js",
     "sync-to-s3": "node scripts/sync-to-s3.js",
     "sync-to-s3-production": "node scripts/sync-to-s3-production.js",
-    "monitor": "node scripts/monitor.js"
+    "sync-to-s3-multi": "node scripts/sync-to-s3-multi.js",
+    "monitor": "node scripts/monitor.js",
+    "monitor-multi": "node scripts/monitor-multi.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.450.0",
