@@ -1,7 +1,7 @@
 {
   "settings": {
     "security": {
-      "jwt_secret": "your-secret-key",
+      "jwt_secret": "your-secret-key1111",
       "session_timeout": 3600,
       "max_login_attempts": 5
     },
