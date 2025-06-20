@@ -4,13 +4,15 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'configuration/*.json'
+    # 临时注释掉路径限制，用于测试
+    # paths:
+    #   - 'configuration/*.json'
   pull_request:
     branches:
       - main
-    paths:
-      - 'configuration/*.json'
+    # 临时注释掉路径限制，用于测试
+    # paths:
+    #   - 'configuration/*.json'
 
 jobs:
   sync-to-s3-production:
