@@ -1,4 +1,4 @@
-name: Sync to S3 Production
+name: Sync Multiple Files to S3 Production
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Sync to S3 Production
+      - name: Sync multiple files to S3 Production
         run: npm run sync-to-s3-production
         env:
           S3_BUCKET: rock-service-data
@@ -48,12 +48,15 @@ jobs:
       - name: Verify production sync
         run: |
           echo "验证生产环境S3同步..."
-          aws s3 ls s3://rock-service-data/config/production/test.json
+          echo "检查所有配置文件:"
+          aws s3 ls s3://rock-service-data/config/production/ --recursive
           
       - name: Notify production deployment
         run: |
-          echo "🚀 生产环境配置文件已更新"
+          echo "🚀 生产环境多文件配置已更新"
           echo "📁 S3路径: s3://rock-service-data/config/production/"
           echo "📂 源文件夹: configuration/"
           echo "🔗 Commit: ${{ github.sha }}"
-          echo "👤 提交者: ${{ github.actor }}" 
+          echo "👤 提交者: ${{ github.actor }}"
+          echo "📄 同步文件:"
+          ls -la configuration/*.json 
