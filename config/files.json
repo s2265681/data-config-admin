@@ -17,6 +17,12 @@
       "description": "第三个配置文件",
       "staging_path": "config2/staging/test3.json",
       "production_path": "config2/production/test3.json"
+    },  
+     {
+      "name": "configuration/test4.json",
+      "description": "第四个配置文件",
+      "staging_path": "config3/staging/test4.json",
+      "production_path": "config3/production/test4.json"
     }
   ],
   "monitoring": {
