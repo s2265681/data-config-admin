@@ -45,6 +45,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
           SYNC_SOURCE: github-main
+          ANTI_CIRCULAR: true
           
       - name: Verify production sync
         run: |

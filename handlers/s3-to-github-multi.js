@@ -71,10 +71,44 @@ async function syncS3ToGithubMulti(bucket, key, fileName) {
     // 检查文件来源，避免循环同步
     const metadata = s3Response.Metadata || {};
     const syncedFrom = metadata['synced-from'];
+    const syncDirection = metadata['sync-direction'];
+    const syncedAt = metadata['synced-at'];
+    
+    console.log(`📋 文件元数据:`, {
+      syncedFrom,
+      syncDirection,
+      syncedAt,
+      environment: metadata['environment']
+    });
+    
+    // 更严格的循环同步检测
+    const isFromGitHub = syncedFrom && (
+      syncedFrom.includes('github') || 
+      syncedFrom.includes('main') || 
+      syncedFrom.includes('staging') ||
+      syncedFrom.includes('staging') ||
+      syncDirection === 'github-to-s3'
+    );
+    
+    // 检查是否是最近从GitHub同步的文件（5分钟内）
+    const isRecentSync = false;
+    if (syncedAt) {
+      const syncTime = new Date(syncedAt);
+      const now = new Date();
+      const timeDiff = now - syncTime;
+      const fiveMinutes = 5 * 60 * 1000; // 5分钟
+      isRecentSync = timeDiff < fiveMinutes;
+    }
     
     // 如果文件是从GitHub同步过来的，跳过同步回GitHub
-    if (syncedFrom && (syncedFrom.includes('github') || syncedFrom.includes('main') || syncedFrom.includes('staging'))) {
+    if (isFromGitHub) {
       console.log(`⏭️  跳过同步: ${fileName} 来源为GitHub (${syncedFrom})，避免循环同步`);
+      return;
+    }
+    
+    // 如果是最近同步的文件，也跳过
+    if (isRecentSync) {
+      console.log(`⏭️  跳过同步: ${fileName} 最近已同步 (${syncedAt})，避免循环同步`);
       return;
     }
     

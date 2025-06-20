@@ -12,7 +12,9 @@
     "sync-to-s3-production": "node scripts/sync-to-s3-production.js",
     "sync-to-s3-multi": "node scripts/sync-to-s3-multi.js",
     "monitor": "node scripts/monitor.js",
-    "monitor-multi": "node scripts/monitor-multi.js"
+    "monitor-multi": "node scripts/monitor-multi.js",
+    "test-circular": "node scripts/test-circular-sync.js",
+    "test-circular-cleanup": "node scripts/test-circular-sync.js --cleanup"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.450.0",

@@ -6,6 +6,7 @@ provider:
   name: aws
   runtime: nodejs18.x
   region: ap-southeast-2
+  logRetentionInDays: 7
   environment:
     GITHUB_TOKEN: ${env:GITHUB_TOKEN, ''}
     GITHUB_REPO: s2265681/data-config-admin
@@ -26,12 +27,14 @@ provider:
             - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
+            - logs:DeleteLogGroup
           Resource: "*"
 
 functions:
   # 只保留多文件同步Lambda函数 - 处理所有JSON文件
   s3ToGithubMultiSync:
     handler: handlers/s3-to-github-multi.handler
+    logRetentionInDays: 7
     events:
       - s3:
           bucket: rock-service-data

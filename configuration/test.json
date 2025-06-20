@@ -1,7 +1,7 @@
 {
     "name": "test",
     "version": "1.0.0",
-    "description": "测试配置文件 - 触发生产环境同步",
+    "description": "解决循环饮用问题",
     "timestamp": "2025-06-20T16:50:00Z",
     "data": {
         "name": "只修改test啊dasd1 16:32",
