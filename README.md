@@ -10,67 +10,77 @@
 - **双向同步**: S3 ↔ GitHub 自动双向同步
 - **详细日志**: 完整的同步日志和状态监控
 - **文件验证**: JSON格式验证和错误处理
+- **文件夹管理**: 基于文件夹的配置组织结构
 
 ## 📁 项目结构
 
 ```
 data-config-admin/
 ├── configuration/          # 配置文件统一管理目录
-│   ├── test.json          # 主要配置文件
-│   ├── test2.json         # 第二个配置文件
-│   └── test3.json         # 第三个配置文件
+│   ├── config/            # 配置文件夹1
+│   │   └── test.json
+│   ├── config2/           # 配置文件夹2
+│   │   ├── test2.json
+│   │   └── test3.json
+│   └── config3/           # 配置文件夹3
+│       └── test4.json
 ├── config/
-│   └── files.json         # 文件管理配置
-├── scripts/
-│   ├── sync-to-s3-multi.js        # 多文件同步到S3脚本
-│   └── monitor-multi.js           # 多文件状态监控脚本
+│   ├── folders.json       # 文件夹管理配置
+│   └── README.md          # 配置说明文档
+├── scripts/               # 脚本目录
+│   ├── sync-folders-to-s3.js        # 文件夹同步到S3
+│   ├── sync-s3-to-local-folders.js  # S3同步到本地文件夹
+│   ├── monitor-folders-sync.js      # 文件夹同步状态监控
+│   ├── manage-folders.js            # 文件夹管理工具
+│   ├── deploy.js                    # 部署脚本
+│   ├── update-lambda.js             # Lambda更新脚本
+│   └── migrate-to-folders.js        # 迁移工具
 ├── handlers/
-│   └── s3-to-github-multi.js      # S3到GitHub多文件同步处理器
+│   └── s3-to-local-folders.js       # S3到本地文件夹同步处理器
 ├── utils/
-│   └── file-manager.js            # 文件管理工具
-├── .github/workflows/
-│   ├── github-to-s3-multi-sync.yml        # 多文件GitHub到S3同步工作流
-│   └── github-to-s3-production-sync.yml   # 生产环境同步工作流
-├── serverless.yml                 # Serverless配置
-└── package.json                   # 项目依赖
+│   ├── file-manager.js              # 文件管理工具
+│   └── folder-manager.js            # 文件夹管理工具
+├── serverless.yml                   # Serverless配置
+├── package.json                     # 项目依赖
+└── SCRIPTS_USAGE.md                 # 脚本使用文档
 ```
 
 ## 🔧 配置说明
 
-### 文件管理配置 (`config/files.json`)
+### 文件夹管理配置 (`config/folders.json`)
 
 ```json
 {
-  "files": [
+  "folders": [
     {
-      "name": "configuration/test.json",
+      "name": "config",
       "description": "主要配置文件",
-      "staging_path": "config/staging/test.json",
-      "production_path": "config/production/test.json"
+      "local_path": "configuration/config",
+      "s3_prefix": "config/staging",
+      "files": [
+        {
+          "name": "test.json",
+          "description": "测试配置文件"
+        }
+      ]
     },
     {
-      "name": "configuration/test2.json",
-      "description": "第二个配置文件",
-      "staging_path": "config/staging/test2.json",
-      "production_path": "config/production/test2.json"
-    },
-    {
-      "name": "configuration/test3.json",
-      "description": "第三个配置文件",
-      "staging_path": "config/staging/test3.json",
-      "production_path": "config/production/test3.json"
+      "name": "config2",
+      "description": "次要配置文件",
+      "local_path": "configuration/config2",
+      "s3_prefix": "config2/staging",
+      "files": [
+        {
+          "name": "test2.json",
+          "description": "第二个测试配置"
+        },
+        {
+          "name": "test3.json",
+          "description": "第三个测试配置"
+        }
+      ]
     }
-  ],
-  "environments": {
-    "staging": {
-      "s3_prefix": "config/staging/",
-      "github_branch": "staging"
-    },
-    "production": {
-      "s3_prefix": "config/production/",
-      "github_branch": "main"
-    }
-  }
+  ]
 }
 ```
 
@@ -106,197 +116,163 @@ cp .env.example .env
 # 编辑 .env 文件，填入你的配置
 ```
 
-### 3. 部署Lambda函数
+### 3. 验证配置
 
 ```bash
-npm run deploy
+npm run manage-folders validate
 ```
 
-### 4. 测试同步
+### 4. 部署Lambda函数
 
 ```bash
-# 同步所有文件到S3 staging
-npm run sync-to-s3-multi
+npm run deploy-with-validation
+```
+
+### 5. 测试同步
+
+```bash
+# 同步文件夹到S3
+npm run sync-to-s3
 
 # 监控同步状态
-npm run monitor-multi
+npm run monitor
 ```
 
 ## 📋 使用指南
 
+### 核心命令
+
+| 命令 | 功能 | 说明 |
+|------|------|------|
+| `npm run deploy` | 标准部署 | 部署整个项目到AWS |
+| `npm run deploy-with-validation` | 验证部署 | 部署前验证配置 |
+| `npm run sync-to-s3` | 同步到S3 | 将本地文件夹同步到S3 |
+| `npm run sync-from-s3` | 从S3同步 | 从S3同步到本地文件夹 |
+| `npm run monitor` | 监控状态 | 检查同步状态 |
+| `npm run manage-folders` | 管理文件夹 | 管理文件夹配置 |
+| `npm run update-lambda` | 更新Lambda | 快速更新函数代码 |
+
+### 详细使用说明
+
+📖 **完整脚本使用文档**: 请查看 [SCRIPTS_USAGE.md](./SCRIPTS_USAGE.md) 获取详细的使用说明和示例。
+
 ### 添加新配置文件
 
-1. 在 `configuration/` 文件夹中添加新的JSON文件
-2. 在 `config/files.json` 中添加文件配置：
+1. 使用管理工具添加文件：
+   ```bash
+   npm run manage-folders add-file
+   ```
 
-```json
-{
-  "name": "configuration/new-config.json",
-  "description": "新配置文件",
-  "staging_path": "config/staging/new-config.json",
-  "production_path": "config/production/new-config.json"
-}
-```
+2. 或者手动在 `config/folders.json` 中添加配置
+
+3. 同步到S3：
+   ```bash
+   npm run sync-to-s3
+   ```
 
 ### 同步操作
 
-#### 手动同步到S3
+#### 手动同步
 
 ```bash
-# 同步到staging环境
-npm run sync-to-s3-multi
+# 同步到S3
+npm run sync-to-s3
 
-# 同步到production环境
-npm run sync-to-s3-production
+# 从S3同步回本地
+npm run sync-from-s3
+
+# 监控同步状态
+npm run monitor
 ```
 
-#### 监控同步状态
+#### 自动同步流程
 
-```bash
-npm run monitor-multi
-```
-
-### 自动同步流程
-
-1. **GitHub → S3**: 当 `configuration/` 文件夹中的文件发生变化时，GitHub Actions自动同步到S3
-2. **S3 → GitHub**: 当S3中的文件发生变化时，Lambda函数自动同步到GitHub
+1. **本地 → S3**: 手动运行 `npm run sync-to-s3`
+2. **S3 → 本地**: 当S3中的文件发生变化时，Lambda函数自动同步到本地文件夹
 
 ## 🔄 同步流程
 
-### Staging环境
-- **GitHub分支**: `staging`
-- **S3路径**: `s3://rock-service-data/config/staging/`
-- **触发条件**: 推送到 `staging` 分支
+### 文件夹结构映射
 
-### Production环境
-- **GitHub分支**: `main`
-- **S3路径**: `s3://rock-service-data/config/production/`
-- **触发条件**: 推送到 `main` 分支
+- **本地路径**: `configuration/config/`
+- **S3路径**: `s3://rock-service-data/config/staging/`
+- **文件映射**: 按文件夹结构自动映射
+
+### 智能同步特性
+
+- **哈希比较**: 基于文件哈希，只同步变更的文件
+- **文件夹结构**: 保持完整的文件夹结构
+- **详细日志**: 提供详细的同步日志和状态报告
 
 ## 📊 监控和日志
 
 ### 同步状态监控
 
 ```bash
-npm run monitor-multi
+npm run monitor
 ```
 
 输出示例：
 ```
-🔍 开始监控多文件同步状态...
-
-📁 检查文件: test.json (configuration/test.json)
-  ✅ 本地: 存在
-  ☁️  S3 Staging: 存在
-  ☁️  S3 Production: 存在
-  🐙 GitHub Staging: 存在
-  🐙 GitHub Production: 存在
-
-📊 同步状态分析:
+📊 同步状态分析
 ================
+✅ 成功: 3 个文件
+❌ 失败: 0 个文件
+⏭️  跳过: 1 个文件
 
-📄 test.json:
-  🔄 Staging: ✅ - 完全同步
-  🚀 Production: ✅ - 完全同步
-
-📂 文件结构:
-============
-configuration/
-  ├── test.json
-  ├── test2.json
-  └── test3.json
+✅ 成功同步的文件:
+   📄 test.json → config/staging/test.json (新增)
+   📄 test2.json → config/staging/test2.json (变更)
 ```
 
-### 日志格式
-
-同步日志包含以下信息：
-- 文件名称和路径
-- 同步方向（S3 ↔ GitHub）
-- 环境信息（staging/production）
-- 时间戳
-- 文件哈希值
-- 错误信息（如果有）
-
-## 🛠️ 开发指南
-
-### 本地开发
+### Lambda日志查看
 
 ```bash
-# 安装依赖
-npm install
-
-# 运行测试
-npm test
-
-# 本地测试同步
-npm run sync-to-s3-multi
+# 查看同步Lambda日志
+serverless logs -f s3ToLocalFoldersSync --tail
 ```
 
-### 添加新的同步逻辑
-
-1. 在 `scripts/` 文件夹中添加新的同步脚本
-2. 在 `handlers/` 文件夹中添加新的Lambda处理器
-3. 更新 `package.json` 中的脚本命令
-4. 更新 `serverless.yml` 配置
-
-## 🔧 故障排除
+## 🛠️ 故障排除
 
 ### 常见问题
 
-1. **GitHub Token权限不足**
-   - 确保GitHub Personal Access Token有足够的权限
-   - 检查token是否已过期
+1. **配置验证失败**
+   ```bash
+   npm run manage-folders validate
+   ```
 
-2. **S3权限问题**
-   - 确保AWS凭证配置正确
-   - 检查S3 bucket权限
+2. **同步失败**
+   ```bash
+   # 检查AWS凭证
+   aws sts get-caller-identity
+   
+   # 检查环境变量
+   echo $AWS_REGION
+   echo $S3_BUCKET
+   ```
 
-3. **文件同步失败**
-   - 检查文件路径配置
-   - 验证JSON格式是否正确
-   - 查看CloudWatch日志
+3. **Lambda函数问题**
+   ```bash
+   # 查看日志
+   serverless logs -f s3ToLocalFoldersSync --tail
+   
+   # 更新函数
+   npm run update-lambda
+   ```
 
-### 调试命令
+## 📚 相关文档
 
-```bash
-# 检查文件配置
-node -e "console.log(require('./config/files.json'))"
+- [脚本使用文档](./SCRIPTS_USAGE.md) - 详细的脚本使用说明
+- [配置管理文档](./config/README.md) - 配置文件管理说明
+- [文件夹管理文档](./FOLDER_MANAGEMENT.md) - 文件夹管理功能说明
 
-# 测试文件管理器
-node -e "const fm = require('./utils/file-manager'); console.log(fm.getFiles())"
+## 🤝 贡献
 
-# 检查环境变量
-node -e "console.log(process.env.GITHUB_TOKEN ? 'Token exists' : 'Token missing')"
-```
-
-## 📝 更新日志
-
-### v2.0.0 - 多文件支持
-- ✅ 支持管理多个JSON配置文件
-- ✅ 智能同步（只同步变更文件）
-- ✅ 统一文件管理（configuration文件夹）
-- ✅ 详细同步日志和状态监控
-
-### v1.0.0 - 基础功能
-- ✅ 单文件双向同步
-- ✅ 多环境支持
-- ✅ 自动部署和监控
-
-## 🤝 贡献指南
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
+欢迎提交Issue和Pull Request来改进这个项目。
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 📞 支持
-
-如有问题或建议，请创建 Issue 或联系维护者。
+MIT License
 
 
 1、 管理 当前文件中的配置文件， 当配置文件触发时， 会自动同步到配置中心

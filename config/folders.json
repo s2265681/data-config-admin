@@ -1,0 +1,86 @@
+{
+  "folders": [
+    {
+      "name": "config",
+      "description": "主要配置文件",
+      "local_path": "configuration/config",
+      "s3_prefix": "config",
+      "files": [
+        {
+          "name": "test.json",
+          "description": "主要配置文件"
+        }
+      ]
+    },
+    {
+      "name": "config2", 
+      "description": "次要配置文件",
+      "local_path": "configuration/config2",
+      "s3_prefix": "config2",
+      "files": [
+        {
+          "name": "test2.json",
+          "description": "第二个配置文件"
+        },
+        {
+          "name": "test3.json", 
+          "description": "第三个配置文件"
+        }
+      ]
+    },
+    {
+      "name": "config3",
+      "description": "第三方配置文件", 
+      "local_path": "configuration/config3",
+      "s3_prefix": "config3",
+      "files": [
+        {
+          "name": "test4.json",
+          "description": "第四个配置文件"
+        }
+      ]
+    }
+  ],
+  "monitoring": {
+    "s3_paths": [
+      {
+        "prefix": "config/staging/",
+        "suffix": ".json",
+        "environment": "staging"
+      },
+      {
+        "prefix": "config/production/",
+        "suffix": ".json", 
+        "environment": "production"
+      },
+      {
+        "prefix": "config2/staging/",
+        "suffix": ".json",
+        "environment": "staging"
+      },
+      {
+        "prefix": "config2/production/",
+        "suffix": ".json",
+        "environment": "production"
+      },
+      {
+        "prefix": "config3/staging/",
+        "suffix": ".json",
+        "environment": "staging"
+      },
+      {
+        "prefix": "config3/production/",
+        "suffix": ".json",
+        "environment": "production"
+      }
+    ]
+  },
+  "environments": {
+    "staging": {
+      "github_branch": "staging"
+    },
+    "production": {
+      "github_branch": "main"
+    }
+  }
+} 

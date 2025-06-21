@@ -6,18 +6,14 @@
   "scripts": {
     "start": "node index.js",
     "deploy": "serverless deploy",
-    "deploy-with-config": "node scripts/deploy-with-config.js",
+    "deploy-with-validation": "node scripts/deploy.js",
     "update-lambda": "node scripts/update-lambda.js",
     "test": "jest",
-    "sync-to-github": "node scripts/sync-to-github.js",
-    "sync-to-s3": "node scripts/sync-to-s3.js",
-    "sync-to-s3-production": "node scripts/sync-to-s3-production.js",
-    "sync-to-s3-multi": "node scripts/sync-to-s3-multi.js",
-    "monitor": "node scripts/monitor.js",
-    "monitor-multi": "node scripts/monitor-multi.js",
-    "test-circular": "node scripts/test-circular-sync.js",
-    "test-circular-cleanup": "node scripts/test-circular-sync.js --cleanup",
-    "validate-config": "node scripts/validate-config.js"
+    "sync-to-s3": "node scripts/sync-folders-to-s3.js",
+    "sync-from-s3": "node scripts/sync-s3-to-local-folders.js",
+    "monitor": "node scripts/monitor-folders-sync.js",
+    "manage-folders": "node scripts/manage-folders.js",
+    "migrate": "node scripts/migrate-to-folders.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.450.0",

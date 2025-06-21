@@ -41,6 +41,42 @@ functions:
     logRetentionInDays: 7
     # events 配置将由 DynamicS3EventsPlugin 动态生成
 
+  # S3到本地文件夹同步Lambda函数
+  s3ToLocalFoldersSync:
+    handler: handlers/s3-to-local-folders.handler
+    logRetentionInDays: 7
+    events:
+      - s3:
+          bucket: rock-service-data
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: config/staging/
+            - prefix: config/production/
+            - prefix: config2/staging/
+            - prefix: config2/production/
+            - prefix: config3/staging/
+            - prefix: config3/production/
+      - s3:
+          bucket: rock-service-data
+          event: s3:ObjectModified:*
+          rules:
+            - prefix: config/staging/
+            - prefix: config/production/
+            - prefix: config2/staging/
+            - prefix: config2/production/
+            - prefix: config3/staging/
+            - prefix: config3/production/
+      - s3:
+          bucket: rock-service-data
+          event: s3:ObjectRemoved:*
+          rules:
+            - prefix: config/staging/
+            - prefix: config/production/
+            - prefix: config2/staging/
+            - prefix: config2/production/
+            - prefix: config3/staging/
+            - prefix: config3/production/
+
 plugins:
   - serverless-dotenv-plugin
   - ./plugins/dynamic-s3-events.js
