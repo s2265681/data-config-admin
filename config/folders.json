@@ -41,40 +41,6 @@
       ]
     }
   ],
-  "monitoring": {
-    "s3_paths": [
-      {
-        "prefix": "config/staging/",
-        "suffix": ".json",
-        "environment": "staging"
-      },
-      {
-        "prefix": "config/production/",
-        "suffix": ".json", 
-        "environment": "production"
-      },
-      {
-        "prefix": "config2/staging/",
-        "suffix": ".json",
-        "environment": "staging"
-      },
-      {
-        "prefix": "config2/production/",
-        "suffix": ".json",
-        "environment": "production"
-      },
-      {
-        "prefix": "config3/staging/",
-        "suffix": ".json",
-        "environment": "staging"
-      },
-      {
-        "prefix": "config3/production/",
-        "suffix": ".json",
-        "environment": "production"
-      }
-    ]
-  },
   "environments": {
     "staging": {
       "github_branch": "staging"

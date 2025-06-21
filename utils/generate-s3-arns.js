@@ -3,20 +3,23 @@ const path = require('path');
 
 function generateS3Arns() {
   try {
-    // 读取配置文件
-    const configPath = path.join(process.cwd(), 'config', 'files.json');
+    // 读取新的文件夹配置
+    const configPath = path.join(process.cwd(), 'config', 'folders.json');
     const configContent = fs.readFileSync(configPath, 'utf8');
     const config = JSON.parse(configContent);
     
-    const monitoringPaths = config.monitoring?.s3_paths || [];
     const bucket = 'rock-service-data';
+    const arns = [];
     
-    // 生成S3资源ARN
-    const arns = monitoringPaths.map(path => {
-      return `arn:aws:s3:::${bucket}/${path.prefix}*`;
-    });
+    // 从文件夹配置生成ARN
+    if (config.folders) {
+      config.folders.forEach(folder => {
+        // 为每个文件夹的staging和production环境生成ARN
+        arns.push(`arn:aws:s3:::${bucket}/${folder.s3_prefix}/staging/*`);
+        arns.push(`arn:aws:s3:::${bucket}/${folder.s3_prefix}/production/*`);
+      });
+    }
     
-    // 返回JSON字符串格式的ARN数组
     return JSON.stringify(arns);
     
   } catch (error) {
@@ -26,7 +29,9 @@ function generateS3Arns() {
       'arn:aws:s3:::rock-service-data/config/staging/*',
       'arn:aws:s3:::rock-service-data/config/production/*',
       'arn:aws:s3:::rock-service-data/config2/staging/*',
-      'arn:aws:s3:::rock-service-data/config2/production/*'
+      'arn:aws:s3:::rock-service-data/config2/production/*',
+      'arn:aws:s3:::rock-service-data/config3/staging/*',
+      'arn:aws:s3:::rock-service-data/config3/production/*'
     ]);
   }
 }

@@ -15,12 +15,15 @@ class DynamicS3EventsPlugin {
     try {
       console.log('🔄 动态生成S3事件配置...');
       
-      // 读取配置文件
-      const configPath = path.join(process.cwd(), 'config', 'files.json');
+      // 读取新的文件夹配置
+      const configPath = path.join(process.cwd(), 'config', 'folders.json');
       const configContent = fs.readFileSync(configPath, 'utf8');
       const config = JSON.parse(configContent);
       
-      const monitoringPaths = config.monitoring?.s3_paths || [];
+      // 从文件夹配置生成监控路径
+      let monitoringPaths = this.generateMonitoringPaths(config);
+      // 去除重叠前缀
+      monitoringPaths = this.filterOverlappingPaths(monitoringPaths);
       
       if (monitoringPaths.length === 0) {
         console.log('⚠️  没有找到监控路径配置');
@@ -41,10 +44,73 @@ class DynamicS3EventsPlugin {
     }
   }
 
+  generateMonitoringPaths(config) {
+    const paths = [];
+    const pathSet = new Set(); // 用于去重
+    
+    // 从文件夹配置生成路径
+    if (config.folders) {
+      config.folders.forEach(folder => {
+        // 为每个文件夹的staging和production环境生成路径
+        const stagingPath = {
+          prefix: `${folder.s3_prefix}/staging/`,
+          suffix: '.json',
+          environment: 'staging'
+        };
+        const productionPath = {
+          prefix: `${folder.s3_prefix}/production/`,
+          suffix: '.json',
+          environment: 'production'
+        };
+        
+        // 检查是否已存在，避免重复
+        const stagingKey = `${stagingPath.prefix}${stagingPath.suffix}`;
+        const productionKey = `${productionPath.prefix}${productionPath.suffix}`;
+        
+        if (!pathSet.has(stagingKey)) {
+          paths.push(stagingPath);
+          pathSet.add(stagingKey);
+        }
+        
+        if (!pathSet.has(productionKey)) {
+          paths.push(productionPath);
+          pathSet.add(productionKey);
+        }
+      });
+    }
+    
+    // 如果配置中有monitoring部分，也使用它（但要避免重复）
+    if (config.monitoring?.s3_paths) {
+      config.monitoring.s3_paths.forEach(path => {
+        const pathKey = `${path.prefix}${path.suffix}`;
+        if (!pathSet.has(pathKey)) {
+          paths.push(path);
+          pathSet.add(pathKey);
+        }
+      });
+    }
+    
+    return paths;
+  }
+
+  // 过滤掉有重叠前缀的路径，只保留最具体的
+  filterOverlappingPaths(paths) {
+    // 按前缀长度降序排序，优先保留更具体的
+    const sorted = [...paths].sort((a, b) => b.prefix.length - a.prefix.length);
+    const result = [];
+    for (const path of sorted) {
+      if (!result.some(p => p.suffix === path.suffix && p.prefix.startsWith(path.prefix))) {
+        result.push(path);
+      }
+    }
+    // 按原顺序返回
+    return result.reverse();
+  }
+
   generateS3EventConfig(monitoringPaths) {
     const events = [];
     
-    monitoringPaths.forEach(path => {
+    monitoringPaths.forEach((path, index) => {
       // 为每个路径生成创建和删除事件
       const createEvent = {
         s3: {
@@ -79,8 +145,8 @@ class DynamicS3EventsPlugin {
   updateServerlessConfig(s3Events) {
     const service = this.serverless.service;
     
-    // 找到s3ToGithubMultiSync函数
-    const functionName = 's3ToGithubMultiSync';
+    // 找到s3ToLocalFoldersSync函数
+    const functionName = 's3ToLocalFoldersSync';
     if (service.functions[functionName]) {
       // 替换现有的事件配置
       service.functions[functionName].events = s3Events;
