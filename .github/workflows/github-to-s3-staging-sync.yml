@@ -1,16 +1,16 @@
-name: Sync Multiple Files to S3 Production
+name: Sync Multiple Files to S3 Staging
 
 on:
   push:
     branches:
-      - main
+      - staging
     paths:
       - 'configuration/**'
       - 'config/folders.json'
   workflow_dispatch:
 
 jobs:
-  sync-to-s3-production:
+  sync-to-s3-staging:
     runs-on: ubuntu-latest
     
     steps:
@@ -41,7 +41,7 @@ jobs:
       - name: Validate configuration
         run: npm run manage-folders validate
         
-      - name: Sync multiple files to S3 Production
+      - name: Sync multiple files to S3 Staging
         run: npm run sync-to-s3
         env:
           S3_BUCKET: rock-service-data
@@ -49,23 +49,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REF: ${{ github.ref }}
-          ENVIRONMENT: production
-          SYNC_SOURCE: github-main
+          ENVIRONMENT: staging
+          SYNC_SOURCE: github-staging
           ANTI_CIRCULAR: true
           
       - name: Monitor sync status
         run: npm run monitor
           
-      - name: Verify production sync
+      - name: Verify staging sync
         run: |
-          echo "验证生产环境S3同步..."
+          echo "验证staging环境S3同步..."
           echo "检查所有配置文件:"
-          aws s3 ls s3://rock-service-data/config/production/ --recursive
+          aws s3 ls s3://rock-service-data/config/staging/ --recursive
           
-      - name: Notify production deployment
+      - name: Notify staging deployment
         run: |
-          echo "🚀 生产环境多文件配置已更新"
-          echo "📁 S3路径: s3://rock-service-data/config/production/"
+          echo "🚀 Staging环境多文件配置已更新"
+          echo "📁 S3路径: s3://rock-service-data/config/staging/"
           echo "📂 源文件夹: configuration/"
           echo "🔗 Commit: ${{ github.sha }}"
           echo "👤 提交者: ${{ github.actor }}"

@@ -10,13 +10,26 @@ async function syncFoldersToS3() {
   try {
     const folderManager = new FolderManager();
     const bucket = process.env.S3_BUCKET || 'rock-service-data';
-    const environment = process.env.ENVIRONMENT || 'staging';
-    const syncSource = process.env.SYNC_SOURCE || 'github-staging';
+    
+    // 根据GitHub分支或环境变量确定环境
+    let environment = process.env.ENVIRONMENT;
+    if (!environment) {
+      // 从GitHub分支判断环境
+      const githubRef = process.env.GITHUB_REF || '';
+      if (githubRef.includes('main') || githubRef.includes('master')) {
+        environment = 'production';
+      } else {
+        environment = 'staging';
+      }
+    }
+    
+    const syncSource = process.env.SYNC_SOURCE || `github-${environment}`;
     
     console.log(`🚀 开始基于文件夹的智能同步到S3: ${bucket}`);
     console.log(`📁 环境: ${environment}`);
     console.log(`🌍 区域: ${process.env.AWS_REGION || 'ap-southeast-2'}`);
     console.log(`🔄 同步来源: ${syncSource}`);
+    console.log(`🔗 GitHub分支: ${process.env.GITHUB_REF || 'unknown'}`);
     console.log('');
     
     const folders = folderManager.getFolders();
