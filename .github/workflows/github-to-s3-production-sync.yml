@@ -5,17 +5,13 @@ on:
     branches:
       - main
     paths:
-      - 'configuration/*.json'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'configuration/*.json'
+      - 'configuration/**'
+      - 'config/folders.json'
+  workflow_dispatch:
 
 jobs:
   sync-to-s3-production:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
     
     steps:
       - name: Checkout code
@@ -37,8 +33,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      - name: Test AWS connection
+        run: |
+          aws sts get-caller-identity --region ap-southeast-2
+          echo "AWS connection test successful"
+          
+      - name: Validate configuration
+        run: npm run manage-folders validate
+        
       - name: Sync multiple files to S3 Production
-        run: npm run sync-to-s3-production
+        run: npm run sync-to-s3
         env:
           S3_BUCKET: rock-service-data
           AWS_REGION: ap-southeast-2
@@ -46,6 +50,9 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           SYNC_SOURCE: github-main
           ANTI_CIRCULAR: true
+          
+      - name: Monitor sync status
+        run: npm run monitor
           
       - name: Verify production sync
         run: |
@@ -60,6 +67,4 @@ jobs:
           echo "📂 源文件夹: configuration/"
           echo "🔗 Commit: ${{ github.sha }}"
           echo "👤 提交者: ${{ github.actor }}"
-          echo "📄 同步文件:"
-          ls -la configuration/*.json
           echo "🔄 同步方向: GitHub → S3 (单向)" 
