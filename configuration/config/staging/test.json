@@ -1,23 +1,11 @@
 {
-  "config": {
-    "database": {
-      "host": "44444dd说三道四的dd4444",
-      "port": 5432,
-      "name": "test_db"
-    },
-    "api": {
-      "version": "v2",
-      "timeout": 30,
-      "retries": 3
-    },
-    "features": {
-      "cache_enabled": true,
-      "logging_level": "info"
-    }
-  },
-  "metadata": {
-    "created_at": "2025-06-20T14:00:00Z",
+    "name": "test123344ooos",
     "version": "1.0.0",
-    "description": "第二个配置文件"
-  }
-} 
+    "description": "解决循环饮用问题",
+    "timestamp": "2025-06-20T16:50:00Z",
+    "data": {
+        "name": "只修改test啊dasd1 16:32",
+        "age": 312,
+        "city": "New York"
+    }
+}
