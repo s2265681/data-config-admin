@@ -3,20 +3,28 @@
     {
       "name": "config",
       "description": "主要配置文件",
-      "local_path": "configuration/config",
-      "s3_prefix": "config",
+      "local_path_staging": "configuration/config/staging",
+      "local_path_production": "configuration/config/production",
+      "s3_prefix_staging": "config/staging",
+      "s3_prefix_production": "config/production",
       "files": [
         {
           "name": "test.json",
           "description": "主要配置文件"
+        },
+        {
+          "name": "test1-2.json",
+          "description": "测试配置文件1-2"
         }
       ]
     },
     {
       "name": "config2", 
       "description": "次要配置文件",
-      "local_path": "configuration/config2",
-      "s3_prefix": "config2",
+      "local_path_staging": "configuration/config2/staging",
+      "local_path_production": "configuration/config2/production",
+      "s3_prefix_staging": "config2/staging",
+      "s3_prefix_production": "config2/production",
       "files": [
         {
           "name": "test2.json",
@@ -31,8 +39,10 @@
     {
       "name": "config3",
       "description": "第三方配置文件", 
-      "local_path": "configuration/config3",
-      "s3_prefix": "config3",
+      "local_path_staging": "configuration/config3/staging",
+      "local_path_production": "configuration/config3/production",
+      "s3_prefix_staging": "config3/staging",
+      "s3_prefix_production": "config3/production",
       "files": [
         {
           "name": "test4.json",

@@ -45,52 +45,15 @@ class DynamicS3EventsPlugin {
   }
 
   generateMonitoringPaths(config) {
-    const paths = [];
-    const pathSet = new Set(); // 用于去重
-    
-    // 从文件夹配置生成路径
-    if (config.folders) {
-      config.folders.forEach(folder => {
-        // 为每个文件夹的staging和production环境生成路径
-        const stagingPath = {
-          prefix: `${folder.s3_prefix}/staging/`,
-          suffix: '.json',
-          environment: 'staging'
-        };
-        const productionPath = {
-          prefix: `${folder.s3_prefix}/production/`,
-          suffix: '.json',
-          environment: 'production'
-        };
-        
-        // 检查是否已存在，避免重复
-        const stagingKey = `${stagingPath.prefix}${stagingPath.suffix}`;
-        const productionKey = `${productionPath.prefix}${productionPath.suffix}`;
-        
-        if (!pathSet.has(stagingKey)) {
-          paths.push(stagingPath);
-          pathSet.add(stagingKey);
-        }
-        
-        if (!pathSet.has(productionKey)) {
-          paths.push(productionPath);
-          pathSet.add(productionKey);
-        }
-      });
-    }
-    
-    // 如果配置中有monitoring部分，也使用它（但要避免重复）
-    if (config.monitoring?.s3_paths) {
-      config.monitoring.s3_paths.forEach(path => {
-        const pathKey = `${path.prefix}${path.suffix}`;
-        if (!pathSet.has(pathKey)) {
-          paths.push(path);
-          pathSet.add(pathKey);
-        }
-      });
-    }
-    
-    return paths;
+    // 只使用一个通用的监控规则，避免AWS S3事件通知冲突
+    // 在Lambda函数内部会根据folders.json配置进行精确过滤
+    return [
+      {
+        prefix: '',
+        suffix: '.json',
+        environment: 'all'
+      }
+    ];
   }
 
   // 过滤掉有重叠前缀的路径，只保留最具体的
@@ -145,8 +108,8 @@ class DynamicS3EventsPlugin {
   updateServerlessConfig(s3Events) {
     const service = this.serverless.service;
     
-    // 找到s3ToLocalFoldersSync函数
-    const functionName = 's3ToLocalFoldersSync';
+    // 找到s3ToGithubSync函数
+    const functionName = 's3ToGithubSync';
     if (service.functions[functionName]) {
       // 替换现有的事件配置
       service.functions[functionName].events = s3Events;
@@ -155,7 +118,7 @@ class DynamicS3EventsPlugin {
       console.log(`📋 监控路径:`);
       s3Events.forEach((event, index) => {
         const s3Config = event.s3;
-        const prefix = s3Config.rules.find(r => r.prefix)?.prefix;
+        const prefix = s3Config.rules.find(r => r.prefix)?.prefix || '';
         const eventType = s3Config.event;
         console.log(`   ${index + 1}. ${prefix}*.json (${eventType})`);
       });

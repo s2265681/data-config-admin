@@ -39,7 +39,7 @@ async function deploy() {
     console.log('\n📋 下一步操作:');
     console.log('1. 测试同步功能: npm run sync-folders-to-s3');
     console.log('2. 监控同步状态: npm run monitor-folders-sync');
-    console.log('3. 查看Lambda日志: serverless logs -f s3ToLocalFoldersSync --tail');
+    console.log('3. 查看Lambda日志: serverless logs -f s3ToGithubSync --tail');
     
   } catch (error) {
     console.error('❌ 部署失败:', error.message);

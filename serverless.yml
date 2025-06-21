@@ -35,9 +35,9 @@ provider:
           Resource: "*"
 
 functions:
-  # S3到本地文件夹同步Lambda函数 - 事件配置将由插件动态生成
-  s3ToLocalFoldersSync:
-    handler: handlers/s3-to-local-folders.handler
+  # S3到GitHub同步Lambda函数 - 事件配置将由插件动态生成
+  s3ToGithubSync:
+    handler: handlers/s3-to-github.handler
     logRetentionInDays: 7
     # events 配置将由 DynamicS3EventsPlugin 动态生成
 

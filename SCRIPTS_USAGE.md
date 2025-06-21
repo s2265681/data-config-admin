@@ -27,12 +27,12 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
 #### `npm run update-lambda [function-name]`
 - **功能**: 快速更新 Lambda 函数
 - **参数**: 
-  - `function-name` (可选): 要更新的函数名称，默认为 `s3ToLocalFoldersSync`
+  - `function-name` (可选): 要更新的函数名称，默认为 `s3ToGithubSync`
 - **用途**: 只更新函数代码，不更新事件配置
 - **示例**: 
   ```bash
   npm run update-lambda
-  npm run update-lambda s3ToLocalFoldersSync
+  npm run update-lambda s3ToGithubSync
   ```
 
 ### 同步相关
@@ -199,7 +199,7 @@ npm run sync-to-s3
 3. **Lambda 函数问题**
    ```bash
    # 查看日志
-   serverless logs -f s3ToLocalFoldersSync --tail
+   serverless logs -f s3ToGithubSync --tail
    
    # 更新函数
    npm run update-lambda
@@ -209,7 +209,7 @@ npm run sync-to-s3
 
 ```bash
 # 查看 Lambda 日志
-serverless logs -f s3ToLocalFoldersSync --tail
+serverless logs -f s3ToGithubSync --tail
 
 # 查看部署日志
 serverless deploy --verbose

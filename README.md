@@ -29,14 +29,13 @@ data-config-admin/
 │   └── README.md          # 配置说明文档
 ├── scripts/               # 脚本目录
 │   ├── sync-folders-to-s3.js        # 文件夹同步到S3
-│   ├── sync-s3-to-local-folders.js  # S3同步到本地文件夹
 │   ├── monitor-folders-sync.js      # 文件夹同步状态监控
 │   ├── manage-folders.js            # 文件夹管理工具
 │   ├── deploy.js                    # 部署脚本
 │   ├── update-lambda.js             # Lambda更新脚本
 │   └── migrate-to-folders.js        # 迁移工具
 ├── handlers/
-│   └── s3-to-local-folders.js       # S3到本地文件夹同步处理器
+│   └── s3-to-github.js              # S3到GitHub同步处理器
 ├── utils/
 │   ├── file-manager.js              # 文件管理工具
 │   └── folder-manager.js            # 文件夹管理工具
@@ -147,7 +146,6 @@ npm run monitor
 | `npm run deploy` | 标准部署 | 部署整个项目到AWS |
 | `npm run deploy-with-validation` | 验证部署 | 部署前验证配置 |
 | `npm run sync-to-s3` | 同步到S3 | 将本地文件夹同步到S3 |
-| `npm run sync-from-s3` | 从S3同步 | 从S3同步到本地文件夹 |
 | `npm run monitor` | 监控状态 | 检查同步状态 |
 | `npm run manage-folders` | 管理文件夹 | 管理文件夹配置 |
 | `npm run update-lambda` | 更新Lambda | 快速更新函数代码 |
@@ -178,9 +176,6 @@ npm run monitor
 # 同步到S3
 npm run sync-to-s3
 
-# 从S3同步回本地
-npm run sync-from-s3
-
 # 监控同步状态
 npm run monitor
 ```
@@ -188,7 +183,7 @@ npm run monitor
 #### 自动同步流程
 
 1. **本地 → S3**: 手动运行 `npm run sync-to-s3`
-2. **S3 → 本地**: 当S3中的文件发生变化时，Lambda函数自动同步到本地文件夹
+2. **S3 → GitHub**: 当S3中的文件发生变化时，Lambda函数自动同步到GitHub仓库
 
 ## 🔄 同步流程
 
@@ -229,7 +224,7 @@ npm run monitor
 
 ```bash
 # 查看同步Lambda日志
-serverless logs -f s3ToLocalFoldersSync --tail
+serverless logs -f s3ToGithubSync --tail
 ```
 
 ## 🛠️ 故障排除
@@ -254,7 +249,7 @@ serverless logs -f s3ToLocalFoldersSync --tail
 3. **Lambda函数问题**
    ```bash
    # 查看日志
-   serverless logs -f s3ToLocalFoldersSync --tail
+   serverless logs -f s3ToGithubSync --tail
    
    # 更新函数
    npm run update-lambda
@@ -303,3 +298,7 @@ npm run monitor-multi
 
 新增监控的文件， 修改filter monitoring 然后使用下面命令进行更新
 npm run deploy-with-config
+
+
+查看日志
+aws logs tail "/aws/lambda/data-config-admin-sync-dev-s3ToGithubSync" --region ap-southeast-2 --since 30m

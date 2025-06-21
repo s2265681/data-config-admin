@@ -10,7 +10,6 @@
     "update-lambda": "node scripts/update-lambda.js",
     "test": "jest",
     "sync-to-s3": "node scripts/sync-folders-to-s3.js",
-    "sync-from-s3": "node scripts/sync-s3-to-local-folders.js",
     "monitor": "node scripts/monitor-folders-sync.js",
     "manage-folders": "node scripts/manage-folders.js",
     "migrate": "node scripts/migrate-to-folders.js"

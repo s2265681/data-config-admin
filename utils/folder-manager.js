@@ -6,6 +6,8 @@ class FolderManager {
   constructor() {
     this.foldersConfigPath = path.join(process.cwd(), 'config', 'folders.json');
     this.foldersConfig = this.loadFoldersConfig();
+    // 在Lambda环境中使用/tmp目录作为可写目录
+    this.basePath = process.env.AWS_LAMBDA_FUNCTION_NAME ? '/tmp' : process.cwd();
   }
 
   loadFoldersConfig() {
@@ -123,58 +125,92 @@ class FolderManager {
   }
 
   // 检查文件是否存在
-  fileExists(folderName, fileName) {
+  fileExists(folderName, fileName, environment) {
     const folder = this.getFolderByName(folderName);
     if (!folder) {
       return false;
     }
-    const filePath = path.join(process.cwd(), folder.local_path, fileName);
+    let filePath;
+    if (environment === 'staging' && folder.local_path_staging) {
+      filePath = path.join(this.basePath, folder.local_path_staging, fileName);
+    } else if (environment === 'production' && folder.local_path_production) {
+      filePath = path.join(this.basePath, folder.local_path_production, fileName);
+    } else if (folder.local_path) {
+      filePath = path.join(this.basePath, folder.local_path, environment, fileName);
+    } else {
+      return false;
+    }
     return fs.existsSync(filePath);
   }
 
   // 读取文件内容
-  readFile(folderName, fileName) {
+  readFile(folderName, fileName, environment) {
     const folder = this.getFolderByName(folderName);
     if (!folder) {
       throw new Error(`文件夹 ${folderName} 未在配置中找到`);
     }
-    const filePath = path.join(process.cwd(), folder.local_path, fileName);
-    if (!this.fileExists(folderName, fileName)) {
+    let filePath;
+    if (environment === 'staging' && folder.local_path_staging) {
+      filePath = path.join(this.basePath, folder.local_path_staging, fileName);
+    } else if (environment === 'production' && folder.local_path_production) {
+      filePath = path.join(this.basePath, folder.local_path_production, fileName);
+    } else if (folder.local_path) {
+      filePath = path.join(this.basePath, folder.local_path, environment, fileName);
+    } else {
+      throw new Error(`文件夹 ${folderName} 未配置本地路径`);
+    }
+    if (!this.fileExists(folderName, fileName, environment)) {
       throw new Error(`文件 ${fileName} 在文件夹 ${folderName} 中不存在`);
     }
     return fs.readFileSync(filePath, 'utf8');
   }
 
   // 写入文件内容
-  writeFile(folderName, fileName, content) {
+  writeFile(folderName, fileName, content, environment) {
     const folder = this.getFolderByName(folderName);
     if (!folder) {
       throw new Error(`文件夹 ${folderName} 未在配置中找到`);
     }
-    const filePath = path.join(process.cwd(), folder.local_path, fileName);
-    
+    let filePath;
+    if (environment === 'staging' && folder.local_path_staging) {
+      filePath = path.join(this.basePath, folder.local_path_staging, fileName);
+    } else if (environment === 'production' && folder.local_path_production) {
+      filePath = path.join(this.basePath, folder.local_path_production, fileName);
+    } else if (folder.local_path) {
+      filePath = path.join(this.basePath, folder.local_path, environment, fileName);
+    } else {
+      throw new Error(`文件夹 ${folderName} 未配置本地路径`);
+    }
     // 确保目录存在
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    
     fs.writeFileSync(filePath, content, 'utf8');
   }
 
   // 计算文件哈希
-  getFileHash(folderName, fileName) {
-    const content = this.readFile(folderName, fileName);
+  getFileHash(folderName, fileName, environment) {
+    const content = this.readFile(folderName, fileName, environment);
     return crypto.createHash('sha256').update(content).digest('hex');
   }
 
   // 获取文件修改时间
-  getFileModifiedTime(folderName, fileName) {
+  getFileModifiedTime(folderName, fileName, environment) {
     const folder = this.getFolderByName(folderName);
     if (!folder) {
       throw new Error(`文件夹 ${folderName} 未在配置中找到`);
     }
-    const filePath = path.join(process.cwd(), folder.local_path, fileName);
+    let filePath;
+    if (environment === 'staging' && folder.local_path_staging) {
+      filePath = path.join(process.cwd(), folder.local_path_staging, fileName);
+    } else if (environment === 'production' && folder.local_path_production) {
+      filePath = path.join(process.cwd(), folder.local_path_production, fileName);
+    } else if (folder.local_path) {
+      filePath = path.join(process.cwd(), folder.local_path, environment, fileName);
+    } else {
+      throw new Error(`文件夹 ${folderName} 未配置本地路径`);
+    }
     const stats = fs.statSync(filePath);
     return stats.mtime;
   }
@@ -319,8 +355,21 @@ class FolderManager {
       errors.push(`重复的文件夹名称: ${duplicateNames.join(', ')}`);
     }
     
-    // 检查S3前缀唯一性
-    const s3Prefixes = this.foldersConfig.folders.map(f => f.s3_prefix);
+    // 检查S3前缀唯一性（支持新的staging和production前缀）
+    const s3Prefixes = [];
+    this.foldersConfig.folders.forEach(folder => {
+      if (folder.s3_prefix_staging) {
+        s3Prefixes.push(folder.s3_prefix_staging);
+      }
+      if (folder.s3_prefix_production) {
+        s3Prefixes.push(folder.s3_prefix_production);
+      }
+      // 兼容旧的s3_prefix字段
+      if (folder.s3_prefix) {
+        s3Prefixes.push(folder.s3_prefix);
+      }
+    });
+    
     const duplicatePrefixes = s3Prefixes.filter((prefix, index) => s3Prefixes.indexOf(prefix) !== index);
     if (duplicatePrefixes.length > 0) {
       errors.push(`重复的S3前缀: ${duplicatePrefixes.join(', ')}`);

@@ -50,11 +50,24 @@ s3://bucket/
       "name": "config",
       "description": "主要配置文件",
       "local_path": "configuration/config",
-      "s3_prefix": "config",
+      "s3_prefix_staging": "config/staging",
+      "s3_prefix_production": "config/production",
       "files": [
         {
           "name": "test.json",
           "description": "主要配置文件"
+        }
+      ]
+    },
+    {
+      "name": "config3",
+      "description": "第三方配置文件", 
+      "local_path": "configuration/config3",
+      "s3_prefix_staging": "config3/staging",
+      "files": [
+        {
+          "name": "test4.json",
+          "description": "第四个配置文件"
         }
       ]
     }
@@ -69,6 +82,24 @@ s3://bucket/
   }
 }
 ```
+
+### 🔍 监控配置说明
+
+Lambda 函数会根据 `config/folders.json` 中的配置来决定监控哪些路径：
+
+1. **环境监控控制**：
+   - 如果配置了 `s3_prefix_staging`，则监控 staging 环境
+   - 如果配置了 `s3_prefix_production`，则监控 production 环境
+   - 如果某个环境没有配置前缀，则不会监控该环境
+
+2. **示例**：
+   - `config` 文件夹：配置了 staging 和 production，两个环境都会被监控
+   - `config3` 文件夹：只配置了 staging，只有 staging 环境会被监控，production 环境会被跳过
+
+3. **监控逻辑**：
+   - 只有 JSON 文件会被监控
+   - 文件必须在对应文件夹的 `files` 配置中
+   - 路径必须匹配配置的前缀格式
 
 ## 🚀 快速开始
 

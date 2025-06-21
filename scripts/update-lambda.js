@@ -5,7 +5,7 @@ async function updateLambda() {
     console.log('🔄 更新Lambda函数...\n');
     
     // 获取函数名称
-    const functionName = process.argv[2] || 's3ToLocalFoldersSync';
+    const functionName = process.argv[2] || 's3ToGithubSync';
     
     console.log(`📋 更新函数: ${functionName}`);
     console.log('===============');
