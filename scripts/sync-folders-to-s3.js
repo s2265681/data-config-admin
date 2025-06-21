@@ -40,22 +40,26 @@ async function syncFoldersToS3() {
     };
     
     for (const folder of folders) {
+      // 动态选择本地路径和S3前缀
+      const localPath = environment === 'production' ? folder.local_path_production : folder.local_path_staging;
+      const s3Prefix = environment === 'production' ? folder.s3_prefix_production : folder.s3_prefix_staging;
+
       console.log(`📁 处理文件夹: ${folder.name} (${folder.description})`);
-      console.log(`   📂 本地路径: ${folder.local_path}`);
-      console.log(`   ☁️  S3前缀: ${folder.s3_prefix}`);
+      console.log(`   📂 本地路径: ${localPath}`);
+      console.log(`   ☁️  S3前缀: ${s3Prefix}`);
       console.log('');
       
       for (const file of folder.files) {
         const fileName = file.name;
-        const s3Key = `${folder.s3_prefix}/${environment}/${fileName}`;
+        const s3Key = `${s3Prefix}/${fileName}`;
         
         try {
           console.log(`   📄 检查文件: ${fileName}`);
-          console.log(`      📂 本地路径: ${folder.local_path}/${fileName}`);
+          console.log(`      📂 本地路径: ${localPath}/${fileName}`);
           console.log(`      ☁️  S3路径: ${s3Key}`);
           
           // 检查本地文件是否存在
-          if (!folderManager.fileExists(folder.name, fileName)) {
+          if (!folderManager.fileExists(folder.name, fileName, environment)) {
             console.log(`      ⚠️  本地文件不存在，跳过: ${fileName}`);
             results.skipped.push({
               folder: folder.name,
@@ -66,7 +70,7 @@ async function syncFoldersToS3() {
           }
           
           // 读取本地文件内容
-          const fileContent = folderManager.readFile(folder.name, fileName);
+          const fileContent = folderManager.readFile(folder.name, fileName, environment);
           const localHash = crypto.createHash('sha256').update(fileContent).digest('hex');
           
           // 检查S3上文件是否存在及其哈希
