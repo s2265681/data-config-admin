@@ -17,6 +17,10 @@
           "description": "新增"
         },
         {
+          "name": "2.json",
+          "description": "新增"
+        },
+        {
           "name": "test1-2.json",
           "description": "测试配置文件1-2"
         }
