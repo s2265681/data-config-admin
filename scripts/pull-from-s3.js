@@ -5,6 +5,7 @@ const { Octokit } = require('@octokit/rest');
 const FolderManager = require('../utils/folder-manager');
 const crypto = require('crypto');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'ap-southeast-2' });
 const octokit = new Octokit({
@@ -27,6 +28,7 @@ async function pullFromS3() {
     const folderManager = new FolderManager();
     const bucket = process.env.S3_BUCKET || 'rock-service-data';
     const [owner, repo] = (process.env.GITHUB_REPO || 's2265681/data-config-admin').split('/');
+    const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
     
     // 验证配置
     const validation = folderManager.validateFoldersConfig();
@@ -39,6 +41,7 @@ async function pullFromS3() {
     console.log(`📦 S3 Bucket: ${bucket}`);
     console.log(`🌍 区域: ${process.env.AWS_REGION || 'ap-southeast-2'}`);
     console.log(`📁 GitHub仓库: ${owner}/${repo}`);
+    console.log(`🌿 目标分支: ${branch}`);
     console.log('');
     
     const folders = folderManager.getFolders();
@@ -54,13 +57,13 @@ async function pullFromS3() {
       // 处理staging环境
       if (folder.s3_prefix_staging) {
         console.log(`   🔄 处理staging环境: ${folder.s3_prefix_staging}`);
-        await processEnvironment(folder, 'staging', bucket, owner, repo, results);
+        await processEnvironment(folder, 'staging', bucket, owner, repo, results, branch);
       }
       
       // 处理production环境
       if (folder.s3_prefix_production) {
         console.log(`   🔄 处理production环境: ${folder.s3_prefix_production}`);
-        await processEnvironment(folder, 'production', bucket, owner, repo, results);
+        await processEnvironment(folder, 'production', bucket, owner, repo, results, branch);
       }
       
       console.log(`📁 文件夹 ${folder.name} 处理完成\n`);
@@ -101,6 +104,7 @@ async function pullFromS3() {
     }
     
     console.log('\n🔄 从S3拉取完成！');
+    console.log('📝 所有文件已同步到当前分支');
     
     // 如果有失败的文件，返回错误状态
     if (results.failed.length > 0) {
@@ -113,7 +117,7 @@ async function pullFromS3() {
   }
 }
 
-async function processEnvironment(folder, environment, bucket, owner, repo, results) {
+async function processEnvironment(folder, environment, bucket, owner, repo, results, branch) {
   const s3Prefix = environment === 'production' ? folder.s3_prefix_production : folder.s3_prefix_staging;
   
   try {
@@ -165,7 +169,7 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
         const s3Response = await s3Client.send(getObjectCommand);
         const fileContent = await streamToString(s3Response.Body);
         
-        // 构建GitHub文件路径，包含环境信息
+        // 构建GitHub文件路径 - 统一使用当前分支，按环境分类目录
         let githubFilePath;
         if (environment === 'staging' && folder.local_path_staging) {
           githubFilePath = `${folder.local_path_staging}/${fileName}`;
@@ -178,7 +182,7 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
         console.log(`         📂 GitHub路径: ${githubFilePath}`);
         
         // 自动递归创建父目录
-        const placeholderFiles = await ensureGithubDirs(owner, repo, githubFilePath);
+        const placeholderFiles = await ensureGithubDirs(owner, repo, githubFilePath, branch);
         
         // 检查GitHub中是否已存在该文件
         let currentFile = null;
@@ -186,7 +190,8 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
           const response = await octokit.repos.getContent({
             owner,
             repo,
-            path: githubFilePath
+            path: githubFilePath,
+            ref: branch
           });
           currentFile = response.data;
           console.log(`         ✅ GitHub文件已存在`);
@@ -203,7 +208,9 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
         const contentBuffer = Buffer.from(fileContent, 'utf8');
         const sha = crypto.createHash('sha1').update(contentBuffer).digest('hex');
         
-        // 如果文件内容没有变化，跳过更新
+        // 强制同步所有文件，不检查内容是否变化
+        // 注释掉内容检查逻辑，确保所有文件都能同步
+        /*
         if (currentFile && currentFile.sha === sha) {
           console.log(`         ⏭️  文件内容未变化，跳过`);
           results.skipped.push({
@@ -214,6 +221,7 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
           });
           continue;
         }
+        */
         
         // 生成提交信息
         const commitMessage = `🔄 从S3拉取: ${fileName} (${environment})`;
@@ -225,12 +233,13 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
           path: githubFilePath,
           message: commitMessage,
           content: contentBuffer.toString('base64'),
-          sha: currentFile ? currentFile.sha : undefined
+          sha: currentFile ? currentFile.sha : undefined,
+          branch: branch
         });
         
         // 删除占位文件
         if (placeholderFiles.length > 0) {
-          await deletePlaceholderFiles(owner, repo, placeholderFiles);
+          await deletePlaceholderFiles(owner, repo, placeholderFiles, branch);
         }
         
         console.log(`         ✅ 成功拉取: ${fileName} (${environment})`);
@@ -280,14 +289,15 @@ async function streamToString(stream) {
 }
 
 // 删除占位文件
-async function deletePlaceholderFiles(owner, repo, placeholderFiles) {
+async function deletePlaceholderFiles(owner, repo, placeholderFiles, branch) {
   for (const placeholderPath of placeholderFiles) {
     try {
       // 获取文件的SHA
       const response = await octokit.repos.getContent({
         owner,
         repo,
-        path: placeholderPath
+        path: placeholderPath,
+        ref: branch
       });
       
       // 删除占位文件
@@ -296,7 +306,8 @@ async function deletePlaceholderFiles(owner, repo, placeholderFiles) {
         repo,
         path: placeholderPath,
         message: `chore: remove placeholder ${placeholderPath}`,
-        sha: response.data.sha
+        sha: response.data.sha,
+        branch: branch
       });
       
       console.log(`         🗑️  删除占位文件: ${placeholderPath}`);
@@ -308,14 +319,14 @@ async function deletePlaceholderFiles(owner, repo, placeholderFiles) {
 }
 
 // 自动递归创建GitHub父目录
-async function ensureGithubDirs(owner, repo, fullPath) {
+async function ensureGithubDirs(owner, repo, fullPath, branch) {
   const dirs = fullPath.split('/').slice(0, -1); // 去掉文件名
   let cur = '';
   const placeholderFiles = [];
   for (const dir of dirs) {
     cur = cur ? `${cur}/${dir}` : dir;
     try {
-      await octokit.repos.getContent({ owner, repo, path: cur });
+      await octokit.repos.getContent({ owner, repo, path: cur, ref: branch });
     } catch (e) {
       if (e.status === 404) {
         // 创建README.md占位
@@ -325,6 +336,7 @@ async function ensureGithubDirs(owner, repo, fullPath) {
           path: `${cur}/README.md`,
           message: `chore: create ${cur}/README.md for directory placeholder`,
           content: Buffer.from(`# ${cur}\n\n目录占位文件`).toString('base64'),
+          branch: branch
         });
         console.log(`         📁 自动创建GitHub目录: ${cur}`);
         placeholderFiles.push(`${cur}/README.md`);
