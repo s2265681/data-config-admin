@@ -115,7 +115,7 @@ async function pullFromS3() {
 
 async function processEnvironment(folder, environment, bucket, owner, repo, results) {
   const s3Prefix = environment === 'production' ? folder.s3_prefix_production : folder.s3_prefix_staging;
-  const branch = environment === 'production' ? 'main' : 'staging';
+  const branch = process.env.GITHUB_BRANCH || 'staging';
   
   try {
     // 列出S3中该前缀下的所有文件
@@ -155,7 +155,7 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
       }
       
       try {
-        console.log(`      📄 处理文件: ${fileName}`);
+        console.log(`      📄 处理文件: ${fileName} (${environment})`);
         
         // 从S3获取文件内容
         const getObjectCommand = new GetObjectCommand({
@@ -166,7 +166,7 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
         const s3Response = await s3Client.send(getObjectCommand);
         const fileContent = await streamToString(s3Response.Body);
         
-        // 构建GitHub文件路径
+        // 构建GitHub文件路径，包含环境信息
         let githubFilePath;
         if (environment === 'staging' && folder.local_path_staging) {
           githubFilePath = `${folder.local_path_staging}/${fileName}`;
@@ -237,7 +237,7 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
           await deletePlaceholderFiles(owner, repo, placeholderFiles, branch);
         }
         
-        console.log(`         ✅ 成功拉取: ${fileName}`);
+        console.log(`         ✅ 成功拉取: ${fileName} (${environment})`);
         results.success.push({
           folder: folder.name,
           file: fileName,
@@ -248,7 +248,7 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
         });
         
       } catch (error) {
-        console.error(`         ❌ 拉取失败: ${fileName}`);
+        console.error(`         ❌ 拉取失败: ${fileName} (${environment})`);
         console.error(`           错误详情: ${error.message}`);
         if (error.response) {
           console.error(`           GitHub API状态: ${error.response.status}`);
