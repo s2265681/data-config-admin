@@ -1,3 +1,23 @@
 {
-    "name":"12122"
-}
+  "config": {
+    "database": {
+      "host": "更新test1+++>>>>>.0119--",
+      "port": 5432,
+      "name": "test_db"
+    },
+    "api": {
+      "version": "v2",
+      "timeout": 30,
+      "retries": 3
+    },
+    "features": {
+      "cache_enabled": true,
+      "logging_level": "info"
+    }
+  },
+  "metadata": {
+    "created_at": "2025-06-20T14:00:00Z",
+    "version": "1.0.0",
+    "description": "第二个配置文件"
+  }
+} 
