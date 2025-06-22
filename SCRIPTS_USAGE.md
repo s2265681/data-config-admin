@@ -61,6 +61,25 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
   npm run sync-from-s3
   ```
 
+#### `npm run pull-from-s3`
+- **功能**: 从 S3 拉取所有配置中监控的文件到 GitHub 仓库
+- **用途**: 将 S3 中的文件同步到 GitHub 仓库，创建或更新文件
+- **特点**: 
+  - 自动读取 `config/folders.json` 配置
+  - 遍历所有配置的文件夹和环境（staging/production）
+  - 从S3下载文件内容并上传到GitHub
+  - 智能比较文件内容，只更新有变化的文件
+  - 自动创建Git提交
+- **环境变量要求**:
+  - `AWS_REGION` - AWS区域 (默认: ap-southeast-2)
+  - `S3_BUCKET` - S3存储桶名称 (默认: rock-service-data)
+  - `GITHUB_TOKEN` - GitHub访问令牌
+  - `GITHUB_REPO` - GitHub仓库 (格式: owner/repo)
+- **示例**: 
+  ```bash
+  npm run pull-from-s3
+  ```
+
 ### 监控相关
 
 #### `npm run monitor`

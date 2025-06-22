@@ -146,6 +146,7 @@ npm run monitor
 | `npm run deploy` | 标准部署 | 部署整个项目到AWS |
 | `npm run deploy-with-validation` | 验证部署 | 部署前验证配置 |
 | `npm run sync-to-s3` | 同步到S3 | 将本地文件夹同步到S3 |
+| `npm run pull-from-s3` | 从S3拉取 | 从S3拉取文件到GitHub仓库 |
 | `npm run monitor` | 监控状态 | 检查同步状态 |
 | `npm run manage-folders` | 管理文件夹 | 管理文件夹配置 |
 | `npm run update-lambda` | 更新Lambda | 快速更新函数代码 |
@@ -176,6 +177,9 @@ npm run monitor
 # 同步到S3
 npm run sync-to-s3
 
+# 从S3拉取到GitHub
+npm run pull-from-s3
+
 # 监控同步状态
 npm run monitor
 ```
@@ -184,6 +188,7 @@ npm run monitor
 
 1. **本地 → S3**: 手动运行 `npm run sync-to-s3`
 2. **S3 → GitHub**: 当S3中的文件发生变化时，Lambda函数自动同步到GitHub仓库
+3. **S3 → GitHub (手动)**: 手动运行 `npm run pull-from-s3` 从S3拉取所有文件到GitHub
 
 ## 🔄 同步流程
 
