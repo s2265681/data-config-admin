@@ -16,7 +16,7 @@
 
 ```
 data-config-admin/
-├── configuration/          # 配置文件统一管理目录
+├── app-config/              # 配置文件统一管理目录
 │   ├── config/            # 配置文件夹1
 │   │   └── test.json
 │   ├── config2/           # 配置文件夹2
@@ -54,7 +54,7 @@ data-config-admin/
     {
       "name": "config",
       "description": "主要配置文件",
-      "local_path": "configuration/config",
+      "local_path": "app-config/config",
       "s3_prefix": "config/staging",
       "files": [
         {
@@ -66,7 +66,7 @@ data-config-admin/
     {
       "name": "config2",
       "description": "次要配置文件",
-      "local_path": "configuration/config2",
+      "local_path": "app-config/config2",
       "s3_prefix": "config2/staging",
       "files": [
         {
@@ -146,6 +146,7 @@ npm run monitor
 | `npm run deploy` | 标准部署 | 部署整个项目到AWS |
 | `npm run deploy-with-validation` | 验证部署 | 部署前验证配置 |
 | `npm run sync-to-s3` | 同步到S3 | 将本地文件夹同步到S3 |
+| `npm run pull-from-s3` | 从S3拉取 | 从S3拉取文件到GitHub仓库 |
 | `npm run monitor` | 监控状态 | 检查同步状态 |
 | `npm run manage-folders` | 管理文件夹 | 管理文件夹配置 |
 | `npm run update-lambda` | 更新Lambda | 快速更新函数代码 |
@@ -176,6 +177,9 @@ npm run monitor
 # 同步到S3
 npm run sync-to-s3
 
+# 从S3拉取到GitHub
+npm run pull-from-s3
+
 # 监控同步状态
 npm run monitor
 ```
@@ -184,12 +188,13 @@ npm run monitor
 
 1. **本地 → S3**: 手动运行 `npm run sync-to-s3`
 2. **S3 → GitHub**: 当S3中的文件发生变化时，Lambda函数自动同步到GitHub仓库
+3. **S3 → GitHub (手动)**: 手动运行 `npm run pull-from-s3` 从S3拉取所有文件到GitHub
 
 ## 🔄 同步流程
 
 ### 文件夹结构映射
 
-- **本地路径**: `configuration/config/`
+- **本地路径**: `app-config/config/`
 - **S3路径**: `s3://rock-service-data/config/staging/`
 - **文件映射**: 按文件夹结构自动映射
 

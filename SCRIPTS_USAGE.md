@@ -39,7 +39,7 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
 
 #### `npm run sync-to-s3`
 - **功能**: 将本地文件夹同步到 S3
-- **用途**: 将 `configuration/` 目录下的文件按文件夹结构同步到 S3
+- **用途**: 将 `app-config/` 目录下的文件按文件夹结构同步到 S3
 - **特点**: 
   - 智能同步（只同步变更的文件）
   - 基于文件哈希比较
@@ -51,7 +51,7 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
 
 #### `npm run sync-from-s3`
 - **功能**: 从 S3 同步到本地文件夹
-- **用途**: 将 S3 中的文件同步回本地 `configuration/` 目录
+- **用途**: 将 S3 中的文件同步回本地 `app-config/` 目录
 - **特点**: 
   - 保持文件夹结构
   - 覆盖本地文件
@@ -59,6 +59,25 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
 - **示例**: 
   ```bash
   npm run sync-from-s3
+  ```
+
+#### `npm run pull-from-s3`
+- **功能**: 从 S3 拉取所有配置中监控的文件到 GitHub 仓库
+- **用途**: 将 S3 中的文件同步到 GitHub 仓库，创建或更新文件
+- **特点**: 
+  - 自动读取 `config/folders.json` 配置
+  - 遍历所有配置的文件夹和环境（staging/production）
+  - 从S3下载文件内容并上传到GitHub
+  - 智能比较文件内容，只更新有变化的文件
+  - 自动创建Git提交
+- **环境变量要求**:
+  - `AWS_REGION` - AWS区域 (默认: ap-southeast-2)
+  - `S3_BUCKET` - S3存储桶名称 (默认: rock-service-data)
+  - `GITHUB_TOKEN` - GitHub访问令牌
+  - `GITHUB_REPO` - GitHub仓库 (格式: owner/repo)
+- **示例**: 
+  ```bash
+  npm run pull-from-s3
   ```
 
 ### 监控相关
@@ -107,7 +126,7 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
 ## 📁 文件夹结构
 
 ```
-configuration/
+app-config/
 ├── config/          # 配置文件夹1
 │   ├── test.json
 │   └── ...
@@ -131,7 +150,7 @@ configuration/
     {
       "name": "config",
       "description": "主要配置文件",
-      "local_path": "configuration/config",
+      "local_path": "app-config/config",
       "s3_prefix": "config/staging",
       "files": [
         {
