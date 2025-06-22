@@ -79,9 +79,7 @@ describe('同步功能测试', () => {
     }));
     
     process.env.GITHUB_REPO = 'test/repo';
-    process.env.GITHUB_BRANCH = 'test-branch';
     process.env.S3_BUCKET = 'test-bucket';
-    process.env.S3_KEY = 'test/path/test.json';
     
     // Mock S3 response
     const { S3Client } = require('@aws-sdk/client-s3');

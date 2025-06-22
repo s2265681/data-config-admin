@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'configuration/**'
+      - 'app-config/**'
       - 'config/folders.json'
   workflow_dispatch:
 
@@ -66,7 +66,7 @@ jobs:
         run: |
           echo "🚀 生产环境多文件配置已更新"
           echo "📁 S3路径: s3://rock-service-data/config/production/"
-          echo "📂 源文件夹: configuration/"
+          echo "📂 源文件夹: app-config/"
           echo "🔗 Commit: ${{ github.sha }}"
           echo "👤 提交者: ${{ github.actor }}"
           echo "🔄 同步方向: GitHub → S3 (单向)" 

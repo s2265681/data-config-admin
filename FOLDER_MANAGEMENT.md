@@ -8,7 +8,7 @@
 
 ### 新的文件夹结构
 ```
-configuration/
+app-config/
 ├── config/              # 主要配置文件
 │   └── test.json
 ├── config2/             # 次要配置文件
@@ -49,7 +49,7 @@ s3://bucket/
     {
       "name": "config",
       "description": "主要配置文件",
-      "local_path": "configuration/config",
+      "local_path": "app-config/config",
       "s3_prefix_staging": "config/staging",
       "s3_prefix_production": "config/production",
       "files": [
@@ -62,7 +62,7 @@ s3://bucket/
     {
       "name": "config3",
       "description": "第三方配置文件", 
-      "local_path": "configuration/config3",
+      "local_path": "app-config/config3",
       "s3_prefix_staging": "config3/staging",
       "files": [
         {
@@ -232,14 +232,14 @@ npm run manage-folders report
 ==================
 
 📁 config (主要配置文件)
-   本地路径: configuration/config
+   本地路径: app-config/config
    S3前缀: config
    文件数量: 1
    文件列表:
      ✅ test.json - 主要配置文件
 
 📁 config2 (次要配置文件)
-   本地路径: configuration/config2
+   本地路径: app-config/config2
    S3前缀: config2
    文件数量: 2
    文件列表:
@@ -279,11 +279,11 @@ npm run manage-folders list-files config
 - 优雅的错误处理
 - 操作日志记录
 
-## 🔄 迁移流程
+## �� 迁移流程
 
 ### 迁移前
 ```
-configuration/
+app-config/
 ├── test.json
 ├── test2.json
 ├── test3.json
@@ -292,7 +292,7 @@ configuration/
 
 ### 迁移后
 ```
-configuration/
+app-config/
 ├── config/
 │   └── test.json
 ├── config2/

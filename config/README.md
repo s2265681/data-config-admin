@@ -15,7 +15,7 @@
     {
       "name": "config",
       "description": "主要配置文件",
-      "local_path": "configuration/config",
+      "local_path": "app-config/config",
       "s3_prefix": "config",
       "files": [
         {
@@ -99,16 +99,11 @@ npm run manage-folders validate
 
 ## 📂 文件夹映射关系
 
-```
-本地文件夹结构:                    S3路径结构:
-configuration/config/              config/staging/
-├── test.json                     ├── test.json
-configuration/config2/             config2/staging/
-├── test2.json                    ├── test2.json
-├── test3.json                    ├── test3.json
-configuration/config3/             config3/staging/
-└── test4.json                    └── test4.json
-```
+| 本地路径                    | S3路径                    |
+|---------------------------|---------------------------|
+| app-config/config/              | config/staging/           |
+| app-config/config2/             | config2/staging/          |
+| app-config/config3/             | config3/staging/          |
 
 ## 🚀 优势
 

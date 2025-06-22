@@ -96,10 +96,10 @@ class FolderManager {
     console.log('🔄 开始迁移文件到新的文件夹结构...');
     
     const migrationMap = {
-      'configuration/test.json': 'configuration/config/test.json',
-      'configuration/test2.json': 'configuration/config2/test2.json', 
-      'configuration/test3.json': 'configuration/config2/test3.json',
-      'configuration/test4.json': 'configuration/config3/test4.json'
+      'app-config/test.json': 'app-config/config/test.json',
+      'app-config/test2.json': 'app-config/config2/test2.json', 
+      'app-config/test3.json': 'app-config/config2/test3.json',
+      'app-config/test4.json': 'app-config/config3/test4.json'
     };
     
     Object.entries(migrationMap).forEach(([source, target]) => {
@@ -327,7 +327,7 @@ class FolderManager {
     this.foldersConfig.folders.push({
       name: folderName,
       description: description,
-      local_path: `configuration/${folderName}`,
+      local_path: `app-config/${folderName}`,
       s3_prefix: s3Prefix,
       files: []
     });

@@ -39,7 +39,7 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
 
 #### `npm run sync-to-s3`
 - **功能**: 将本地文件夹同步到 S3
-- **用途**: 将 `configuration/` 目录下的文件按文件夹结构同步到 S3
+- **用途**: 将 `app-config/` 目录下的文件按文件夹结构同步到 S3
 - **特点**: 
   - 智能同步（只同步变更的文件）
   - 基于文件哈希比较
@@ -51,7 +51,7 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
 
 #### `npm run sync-from-s3`
 - **功能**: 从 S3 同步到本地文件夹
-- **用途**: 将 S3 中的文件同步回本地 `configuration/` 目录
+- **用途**: 将 S3 中的文件同步回本地 `app-config/` 目录
 - **特点**: 
   - 保持文件夹结构
   - 覆盖本地文件
@@ -126,7 +126,7 @@ Data Config Admin 是一个基于文件夹的配置文件管理系统，支持�
 ## 📁 文件夹结构
 
 ```
-configuration/
+app-config/
 ├── config/          # 配置文件夹1
 │   ├── test.json
 │   └── ...
@@ -150,7 +150,7 @@ configuration/
     {
       "name": "config",
       "description": "主要配置文件",
-      "local_path": "configuration/config",
+      "local_path": "app-config/config",
       "s3_prefix": "config/staging",
       "files": [
         {

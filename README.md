@@ -16,7 +16,7 @@
 
 ```
 data-config-admin/
-├── configuration/          # 配置文件统一管理目录
+├── app-config/              # 配置文件统一管理目录
 │   ├── config/            # 配置文件夹1
 │   │   └── test.json
 │   ├── config2/           # 配置文件夹2
@@ -54,7 +54,7 @@ data-config-admin/
     {
       "name": "config",
       "description": "主要配置文件",
-      "local_path": "configuration/config",
+      "local_path": "app-config/config",
       "s3_prefix": "config/staging",
       "files": [
         {
@@ -66,7 +66,7 @@ data-config-admin/
     {
       "name": "config2",
       "description": "次要配置文件",
-      "local_path": "configuration/config2",
+      "local_path": "app-config/config2",
       "s3_prefix": "config2/staging",
       "files": [
         {
@@ -194,7 +194,7 @@ npm run monitor
 
 ### 文件夹结构映射
 
-- **本地路径**: `configuration/config/`
+- **本地路径**: `app-config/config/`
 - **S3路径**: `s3://rock-service-data/config/staging/`
 - **文件映射**: 按文件夹结构自动映射
 
