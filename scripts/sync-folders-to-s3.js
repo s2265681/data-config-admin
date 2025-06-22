@@ -1,6 +1,8 @@
 const { S3Client, PutObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const FolderManager = require('../utils/folder-manager');
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 
 const s3Client = new S3Client({ 
   region: process.env.AWS_REGION || 'ap-southeast-2'
@@ -60,13 +62,125 @@ async function syncFoldersToS3() {
           
           // 检查本地文件是否存在
           if (!folderManager.fileExists(folder.name, fileName, environment)) {
-            console.log(`      ⚠️  本地文件不存在，跳过: ${fileName}`);
-            results.skipped.push({
-              folder: folder.name,
-              file: fileName,
-              reason: '本地文件不存在'
-            });
-            continue;
+            console.log(`      ⚠️  本地文件不存在: ${fileName}`);
+            
+            // 如果是production环境，尝试从staging环境复制文件
+            if (environment === 'production') {
+              console.log(`      🔄 尝试从staging环境复制文件到production...`);
+              
+              try {
+                // 检查staging环境是否存在该文件
+                if (folderManager.fileExists(folder.name, fileName, 'staging')) {
+                  // 读取staging环境的文件内容
+                  const stagingContent = folderManager.readFile(folder.name, fileName, 'staging');
+                  
+                  // 创建production环境的目录结构
+                  const productionPath = path.join(process.cwd(), folder.local_path_production);
+                  if (!fs.existsSync(productionPath)) {
+                    fs.mkdirSync(productionPath, { recursive: true });
+                    console.log(`      📁 创建production目录: ${folder.local_path_production}`);
+                  }
+                  
+                  // 写入production环境
+                  const productionFilePath = path.join(productionPath, fileName);
+                  fs.writeFileSync(productionFilePath, stagingContent, 'utf8');
+                  console.log(`      ✅ 成功从staging复制到production: ${fileName}`);
+                  
+                  // 继续处理这个文件
+                  const fileContent = stagingContent;
+                  const localHash = crypto.createHash('sha256').update(fileContent).digest('hex');
+                  
+                  // 检查S3上文件是否存在及其哈希
+                  let s3Hash = null;
+                  let s3Exists = false;
+                  try {
+                    const headCommand = new HeadObjectCommand({
+                      Bucket: bucket,
+                      Key: s3Key
+                    });
+                    const headResult = await s3Client.send(headCommand);
+                    s3Exists = true;
+                    s3Hash = headResult.Metadata?.['file-hash'];
+                    console.log(`      ☁️  S3文件存在，哈希: ${s3Hash ? s3Hash.substring(0, 8) + '...' : '无'}`);
+                  } catch (error) {
+                    if (error.name === 'NotFound') {
+                      console.log(`      ☁️  S3文件不存在，需要上传`);
+                    } else {
+                      throw error;
+                    }
+                  }
+                  
+                  // 比较哈希，判断是否需要同步
+                  if (s3Exists && s3Hash === localHash) {
+                    console.log(`      ⏭️  文件未变更，跳过同步`);
+                    results.skipped.push({
+                      folder: folder.name,
+                      file: fileName,
+                      reason: '文件未变更（从staging复制）',
+                      hash: localHash.substring(0, 8) + '...'
+                    });
+                    continue;
+                  }
+                  
+                  // 上传到S3
+                  const putObjectCommand = new PutObjectCommand({
+                    Bucket: bucket,
+                    Key: s3Key,
+                    Body: fileContent,
+                    ContentType: 'application/json',
+                    Metadata: {
+                      'synced-from': `${syncSource}-staging-copy`,
+                      'synced-at': new Date().toISOString(),
+                      'commit-sha': process.env.GITHUB_SHA || 'unknown',
+                      'environment': environment,
+                      'file-hash': localHash,
+                      'source-folder': folder.name,
+                      'source-file': fileName,
+                      'sync-direction': 'github-to-s3',
+                      'copied-from': 'staging'
+                    }
+                  });
+                  
+                  await s3Client.send(putObjectCommand);
+                  
+                  console.log(`      ✅ 成功同步（从staging复制）: ${fileName}`);
+                  results.success.push({
+                    folder: folder.name,
+                    file: fileName,
+                    s3Key: s3Key,
+                    hash: localHash.substring(0, 8) + '...',
+                    changed: '从staging复制'
+                  });
+                  
+                  continue;
+                } else {
+                  console.log(`      ❌ staging环境也不存在该文件，跳过: ${fileName}`);
+                  results.skipped.push({
+                    folder: folder.name,
+                    file: fileName,
+                    reason: '本地文件不存在，staging环境也不存在'
+                  });
+                  continue;
+                }
+              } catch (error) {
+                console.error(`      ❌ 从staging复制文件失败: ${fileName}`, error.message);
+                results.failed.push({
+                  folder: folder.name,
+                  file: fileName,
+                  error: `从staging复制失败: ${error.message}`
+                });
+                continue;
+              }
+            } else {
+              // 非production环境，直接跳过
+              console.log(`      ⚠️  本地文件不存在，跳过: ${fileName}`);
+              results.skipped.push({
+                folder: folder.name,
+                file: fileName,
+                reason: '本地文件不存在'
+              });
+              continue;
+            }
           }
           
           // 读取本地文件内容
