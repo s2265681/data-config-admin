@@ -69,6 +69,10 @@
         {
           "name": "aaa.json",
           "description": "测试aaa.json"
+        },
+        {
+          "name": "test.json",
+          "description": "test.json"
         }
       ]
     }
