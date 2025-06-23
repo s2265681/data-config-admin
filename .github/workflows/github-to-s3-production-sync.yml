@@ -91,19 +91,9 @@ jobs:
             echo "⚠️  已存在Pull Request #$existing_pr，跳过创建"
           else
             # 创建新的Pull Request
-            pr_body="自动合并main分支到staging分支
-
-**触发原因**: main分支有新的提交
-**提交SHA**: ${{ github.sha }}
-**提交者**: ${{ github.actor }}
-**时间**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-
----
-*此PR由GitHub Actions自动创建*"
-            
             pr_number=$(gh pr create \
               --title "🔄 Auto-merge: main -> staging" \
-              --body "$pr_body" \
+              --body "自动合并main分支到staging分支。触发原因: main分支有新的提交。提交SHA: ${{ github.sha }}。提交者: ${{ github.actor }}。时间: $(date -u +"%Y-%m-%d %H:%M:%S UTC")。此PR由GitHub Actions自动创建。" \
               --base staging \
               --head main \
               --json number \
