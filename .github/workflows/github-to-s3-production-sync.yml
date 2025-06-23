@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
         
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -72,4 +75,38 @@ jobs:
           echo "📂 源文件夹: app-config/"
           echo "🔗 Commit: ${{ github.sha }}"
           echo "👤 提交者: ${{ github.actor }}"
-          echo "🔄 同步方向: GitHub → S3 (单向)" 
+          echo "🔄 同步方向: GitHub → S3 (单向)"
+          
+      - name: Auto merge main to staging
+        run: |
+          echo "🔄 开始自动合并main到staging分支..."
+          
+          # 配置Git用户信息
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 获取staging分支
+          git fetch origin staging:staging
+          
+          # 切换到staging分支
+          git checkout staging
+          
+          # 合并main分支到staging
+          if git merge main --no-edit; then
+            echo "✅ 合并成功，推送到staging分支"
+            git push origin staging
+            echo "🎉 main分支已成功合并到staging分支"
+          else
+            echo "⚠️  合并冲突，尝试解决..."
+            # 如果有冲突，使用ours策略（保留staging的更改）
+            git merge --abort
+            git merge main --strategy=ours --no-edit
+            git push origin staging
+            echo "⚠️  使用ours策略解决冲突，已推送到staging分支"
+          fi
+          
+          echo "📋 合并详情:"
+          echo "   源分支: main"
+          echo "   目标分支: staging"
+          echo "   提交SHA: ${{ github.sha }}"
+          echo "   提交者: ${{ github.actor }}" 
