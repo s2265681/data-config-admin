@@ -85,6 +85,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
+          # 检查是否有未提交的更改并stash
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "📝 发现未提交的更改，正在stash..."
+            git stash push -m "🔄 Auto-stash changes from S3 sync"
+          fi
+          
           # 获取staging分支
           git fetch origin staging:staging
           
@@ -103,6 +109,14 @@ jobs:
             git merge main --strategy=ours --no-edit
             git push origin staging
             echo "⚠️  使用ours策略解决冲突，已推送到staging分支"
+          fi
+          
+          # 如果需要，恢复stash的更改
+          if git stash list | grep -q "Auto-stash changes from S3 sync"; then
+            echo "📝 恢复stash的更改..."
+            git checkout main
+            git stash pop
+            echo "✅ stash更改已恢复"
           fi
           
           echo "📋 合并详情:"
