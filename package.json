@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "deploy": "serverless deploy",
+    "deploy": "serverless deploy --force",
     "deploy-with-validation": "node scripts/deploy.js",
     "update-lambda": "node scripts/update-lambda.js",
     "test": "jest",
