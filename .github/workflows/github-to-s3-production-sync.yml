@@ -81,28 +81,45 @@ jobs:
         run: |
           echo "🔄 开始自动合并main到staging分支..."
           
-          # 配置Git用户信息
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # 使用GitHub CLI创建Pull Request
+          echo "📝 创建Pull Request: main -> staging"
           
-          # 获取staging分支
-          git fetch origin staging:staging
+          # 检查是否已经存在相同的PR
+          existing_pr=$(gh pr list --head main --base staging --json number --jq '.[0].number' 2>/dev/null || echo "")
           
-          # 切换到staging分支
-          git checkout staging
-          
-          # 合并main分支到staging
-          if git merge main --no-edit; then
-            echo "✅ 合并成功，推送到staging分支"
-            git push origin staging
-            echo "🎉 main分支已成功合并到staging分支"
+          if [[ -n "$existing_pr" ]]; then
+            echo "⚠️  已存在Pull Request #$existing_pr，跳过创建"
           else
-            echo "⚠️  合并冲突，尝试解决..."
-            # 如果有冲突，使用ours策略（保留staging的更改）
-            git merge --abort
-            git merge main --strategy=ours --no-edit
-            git push origin staging
-            echo "⚠️  使用ours策略解决冲突，已推送到staging分支"
+            # 创建新的Pull Request
+            pr_number=$(gh pr create \
+              --title "🔄 Auto-merge: main -> staging" \
+              --body "自动合并main分支到staging分支
+
+**触发原因**: main分支有新的提交
+**提交SHA**: ${{ github.sha }}
+**提交者**: ${{ github.actor }}
+**时间**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+---
+*此PR由GitHub Actions自动创建*" \
+              --base staging \
+              --head main \
+              --json number \
+              --jq '.number' 2>/dev/null || echo "")
+            
+            if [[ -n "$pr_number" ]]; then
+              echo "✅ 成功创建Pull Request #$pr_number"
+              
+              # 自动合并PR
+              echo "🔄 自动合并Pull Request..."
+              if gh pr merge $pr_number --merge --delete-branch; then
+                echo "🎉 成功合并main分支到staging分支"
+              else
+                echo "⚠️  自动合并失败，可能需要手动处理"
+              fi
+            else
+              echo "❌ 创建Pull Request失败"
+            fi
           fi
           
           echo "📋 合并详情:"
