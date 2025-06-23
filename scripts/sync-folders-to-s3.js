@@ -294,7 +294,7 @@ async function syncFoldersToS3() {
     
     // 同步到GitHub master分支
     if (filesToSyncToGitHub.length > 0 && environment === 'production') {
-      console.log('🐙 开始同步变更文件到GitHub master分支...');
+      console.log('🐙 开始同步变更文件到GitHub main分支...');
       console.log('=====================================');
       
       try {
@@ -307,83 +307,62 @@ async function syncFoldersToS3() {
             reason: 'GITHUB_TOKEN未设置'
           });
         } else {
-          // 使用更简单的方式：创建或更新README文件来记录同步状态
-          const readmeContent = `# 配置文件同步状态
-
-## 最后同步时间
-${new Date().toISOString()}
-
-## 同步环境
-${environment}
-
-## 触发分支
-${process.env.GITHUB_REF || 'unknown'}
-
-## 本次同步的文件
-${filesToSyncToGitHub.map(file => `- ${file.folder}/${file.fileName}`).join('\n')}
-
-## 同步统计
-- 成功同步: ${results.success.length} 个文件
-- 跳过文件: ${results.skipped.length} 个文件
-- 失败文件: ${results.failed.length} 个文件
-
----
-*此文件由自动同步脚本生成，用于记录配置文件同步状态*
-`;
-
-          try {
-            // 尝试更新现有的README文件
-            const { data: existingFile } = await octokit.repos.getContent({
-              owner,
-              repo,
-              path: 'SYNC_STATUS.md',
-              ref: 'main'
-            });
-
-            // 更新文件
-            await octokit.repos.createOrUpdateFileContents({
-              owner,
-              repo,
-              path: 'SYNC_STATUS.md',
-              message: `🔄 更新同步状态 - ${new Date().toISOString()}`,
-              content: Buffer.from(readmeContent).toString('base64'),
-              sha: existingFile.sha,
-              branch: 'main'
-            });
-
-            console.log(`✅ 成功更新同步状态文件: SYNC_STATUS.md`);
-            
-            // 记录GitHub同步结果
-            results.githubSync.push({
-              folder: 'sync-status',
-              file: 'SYNC_STATUS.md',
-              path: 'SYNC_STATUS.md',
-              commitSha: 'updated'
-            });
-
-          } catch (error) {
-            if (error.status === 404) {
-              // 文件不存在，创建新文件
+          // 逐个检查并同步文件到GitHub
+          for (const file of filesToSyncToGitHub) {
+            try {
+              console.log(`📄 检查GitHub文件: ${file.path}`);
+              
+              // 检查GitHub上是否存在该文件
+              let existingFile = null;
+              try {
+                const { data } = await octokit.repos.getContent({
+                  owner,
+                  repo,
+                  path: file.path,
+                  ref: 'main'
+                });
+                existingFile = data;
+                console.log(`   ✅ GitHub上文件存在，SHA: ${data.sha.substring(0, 8)}...`);
+              } catch (error) {
+                if (error.status === 404) {
+                  console.log(`   📝 GitHub上文件不存在，将创建新文件`);
+                } else {
+                  throw error;
+                }
+              }
+              
+              // 创建或更新文件
+              const message = existingFile 
+                ? `🔄 更新配置文件 ${file.fileName} - ${new Date().toISOString()}`
+                : `🆕 创建配置文件 ${file.fileName} - ${new Date().toISOString()}`;
+              
               await octokit.repos.createOrUpdateFileContents({
                 owner,
                 repo,
-                path: 'SYNC_STATUS.md',
-                message: `🔄 创建同步状态文件 - ${new Date().toISOString()}`,
-                content: Buffer.from(readmeContent).toString('base64'),
+                path: file.path,
+                message: message,
+                content: Buffer.from(file.content).toString('base64'),
+                sha: existingFile?.sha,
                 branch: 'main'
               });
-
-              console.log(`✅ 成功创建同步状态文件: SYNC_STATUS.md`);
+              
+              console.log(`   ✅ 成功${existingFile ? '更新' : '创建'}: ${file.path}`);
               
               // 记录GitHub同步结果
               results.githubSync.push({
-                folder: 'sync-status',
-                file: 'SYNC_STATUS.md',
-                path: 'SYNC_STATUS.md',
-                commitSha: 'created'
+                folder: file.folder,
+                file: file.fileName,
+                path: file.path,
+                commitSha: existingFile ? 'updated' : 'created'
               });
-            } else {
-              throw error;
+              
+            } catch (error) {
+              console.error(`   ❌ 同步文件失败: ${file.path}`, error.message);
+              results.failed.push({
+                folder: file.folder,
+                file: file.fileName,
+                error: `GitHub同步失败: ${error.message}`
+              });
             }
           }
         }
@@ -472,10 +451,10 @@ ${filesToSyncToGitHub.map(file => `- ${file.folder}/${file.fileName}`).join('\n'
     }
     
     console.log('\n🚀 基于文件夹的智能同步完成！');
-    console.log('🔄 同步方向: GitHub → S3 → GitHub master (只同步变更文件)');
+    console.log('🔄 同步方向: GitHub → S3 → GitHub main (只同步变更文件)');
     
     // 只检查S3同步失败，GitHub同步失败不影响整体结果
-    const s3FailedCount = results.failed.filter(result => result.folder !== 'github-sync').length;
+    const s3FailedCount = results.failed.filter(result => !result.error?.includes('GitHub同步失败')).length;
     if (s3FailedCount > 0) {
       console.log(`\n⚠️  S3同步有 ${s3FailedCount} 个文件失败`);
       process.exit(1);
