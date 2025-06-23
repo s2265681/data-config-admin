@@ -82,6 +82,20 @@
           "description": "test3.json"
         }
       ]
+    },
+    {
+      "name": "config6", 
+      "description": "测试配置文件6",
+      "local_path_staging": "app-config/config6/staging",
+      "local_path_production": "app-config/config6/production",
+      "s3_prefix_staging": "config6/staging",
+      "s3_prefix_production": "config6/production",
+      "files": [
+        {
+          "name": "1.json",
+          "description": "1.json"
+        }
+      ]
     }
   ],
   "environments": {

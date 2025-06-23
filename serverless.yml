@@ -11,30 +11,7 @@ provider:
     GITHUB_TOKEN: ${env:GITHUB_TOKEN, ''}
     GITHUB_REPO: s2265681/data-config-admin
     S3_BUCKET: rock-service-data
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - s3:GetObject
-            - s3:PutObject
-            - s3:DeleteObject
-          Resource: 
-            - arn:aws:s3:::rock-service-data/config/staging/*
-            - arn:aws:s3:::rock-service-data/config/production/*
-            - arn:aws:s3:::rock-service-data/config2/staging/*
-            - arn:aws:s3:::rock-service-data/config2/production/*
-            - arn:aws:s3:::rock-service-data/config3/staging/*
-            - arn:aws:s3:::rock-service-data/config3/production/*
-            - arn:aws:s3:::rock-service-data/config5/staging/*
-            - arn:aws:s3:::rock-service-data/config5/production/*
-        - Effect: Allow
-          Action:
-            - logs:CreateLogGroup
-            - logs:CreateLogStream
-            - logs:PutLogEvents
-            - logs:DeleteLogGroup
-          Resource: "*"
+  # IAM权限将由 DynamicIamPermissionsPlugin 动态生成
 
 functions:
   # S3到GitHub同步Lambda函数 - 事件配置将由插件动态生成
@@ -45,7 +22,8 @@ functions:
 
 plugins:
   - serverless-dotenv-plugin
-  - ./plugins/dynamic-s3-events.js
+  - ./plugins/dynamic-s3-events.js      # 动态生成S3事件配置
+  - ./plugins/dynamic-iam-permissions.js # 动态生成IAM权限配置
 
 custom:
   dotenv:
