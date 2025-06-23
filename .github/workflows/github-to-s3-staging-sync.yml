@@ -9,6 +9,9 @@ on:
       - 'config/folders.json'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   sync-to-s3-staging:
     runs-on: ubuntu-latest
