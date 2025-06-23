@@ -42,6 +42,52 @@ async function syncFoldersToS3() {
     console.log('');
     
     const folders = folderManager.getFolders();
+    
+    // 如果是production环境，自动从staging同步有变更的文件到本地production路径
+    if (environment === 'production') {
+      console.log('🔄 开始检查并同步 staging -> production 的本地文件变更...');
+      console.log('===========================================================');
+      let changesFound = false;
+      
+      for (const folder of folders) {
+        for (const file of folder.files) {
+          const stagingFilePath = path.join(process.cwd(), folder.local_path_staging, file.name);
+          const productionFilePath = path.join(process.cwd(), folder.local_path_production, file.name);
+
+          if (!fs.existsSync(stagingFilePath)) {
+            continue; // staging文件不存在，跳过
+          }
+
+          const stagingContent = fs.readFileSync(stagingFilePath);
+          const stagingHash = crypto.createHash('sha256').update(stagingContent).digest('hex');
+
+          let productionHash = null;
+          if (fs.existsSync(productionFilePath)) {
+            const productionContent = fs.readFileSync(productionFilePath);
+            productionHash = crypto.createHash('sha256').update(productionContent).digest('hex');
+          }
+
+          if (stagingHash !== productionHash) {
+            changesFound = true;
+            console.log(`   - 检测到变更: ${folder.name}/${file.name}`);
+            
+            const productionDir = path.dirname(productionFilePath);
+            fs.mkdirSync(productionDir, { recursive: true });
+
+            fs.copyFileSync(stagingFilePath, productionFilePath);
+            console.log(`     ✅ 已将 staging 内容同步到: ${folder.local_path_production}/${file.name}`);
+          }
+        }
+      }
+      
+      if (!changesFound) {
+        console.log('   ✅ 所有 staging 和 production 文件均一致，无需同步。');
+      }
+      
+      console.log('===========================================================');
+      console.log('✅ 本地 staging -> production 同步检查完成。\n');
+    }
+    
     const results = {
       success: [],
       failed: [],
