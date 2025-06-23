@@ -6,6 +6,7 @@ const FolderManager = require('../utils/folder-manager');
 const crypto = require('crypto');
 const path = require('path');
 const { execSync } = require('child_process');
+const fs = require('fs');
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'ap-southeast-2' });
 const octokit = new Octokit({
@@ -28,7 +29,32 @@ async function pullFromS3() {
     const folderManager = new FolderManager();
     const bucket = process.env.S3_BUCKET || 'rock-service-data';
     const [owner, repo] = (process.env.GITHUB_REPO || 's2265681/data-config-admin').split('/');
-    const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+    
+    // 获取当前分支信息
+    let currentBranch;
+    let triggerBranch;
+    
+    try {
+      currentBranch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+      console.log(`🌿 当前分支: ${currentBranch}`);
+    } catch (error) {
+      console.warn('⚠️  无法获取Git分支信息，使用默认分支');
+      currentBranch = 'main';
+    }
+    
+    // 确定触发分支
+    if (process.env.GITHUB_REF) {
+      // 在GitHub Actions环境中
+      triggerBranch = process.env.GITHUB_REF.replace('refs/heads/', '');
+    } else if (process.env.CI) {
+      // 在其他CI环境中
+      triggerBranch = process.env.BRANCH || process.env.CI_COMMIT_REF_NAME || currentBranch;
+    } else {
+      // 本地环境
+      triggerBranch = currentBranch;
+    }
+    
+    console.log(`🔗 触发分支: ${triggerBranch}`);
     
     // 验证配置
     const validation = folderManager.validateFoldersConfig();
@@ -41,59 +67,82 @@ async function pullFromS3() {
     console.log(`📦 S3 Bucket: ${bucket}`);
     console.log(`🌍 区域: ${process.env.AWS_REGION || 'ap-southeast-2'}`);
     console.log(`📁 GitHub仓库: ${owner}/${repo}`);
-    console.log(`🌿 目标分支: ${branch}`);
+    console.log(`🌿 目标分支: ${currentBranch}`);
     console.log('');
     
     const folders = folderManager.getFolders();
     const results = {
       success: [],
       failed: [],
-      skipped: []
+      skipped: [],
+      changed: [] // 存储有变化的文件，用于批量提交
     };
     
+    // 处理每个文件夹
     for (const folder of folders) {
-      console.log(`📁 处理文件夹: ${folder.name} (${folder.description})`);
+      console.log(`📁 处理文件夹: ${folder.name}`);
       
       // 处理staging环境
       if (folder.s3_prefix_staging) {
-        console.log(`   🔄 处理staging环境: ${folder.s3_prefix_staging}`);
-        await processEnvironment(folder, 'staging', bucket, owner, repo, results, branch);
+        console.log(`   🌍 处理staging环境...`);
+        await processEnvironmentBatch(folder, 'staging', bucket, owner, repo, results, currentBranch);
       }
       
       // 处理production环境
       if (folder.s3_prefix_production) {
-        console.log(`   🔄 处理production环境: ${folder.s3_prefix_production}`);
-        await processEnvironment(folder, 'production', bucket, owner, repo, results, branch);
+        console.log(`   🚀 处理production环境...`);
+        await processEnvironmentBatch(folder, 'production', bucket, owner, repo, results, currentBranch);
       }
       
       console.log(`📁 文件夹 ${folder.name} 处理完成\n`);
     }
     
+    // 批量提交有变化的文件
+    if (results.changed.length > 0) {
+      console.log('🐙 开始批量提交有变化的文件...');
+      console.log('=====================================');
+      
+      try {
+        await batchCommitFiles(owner, repo, results.changed, currentBranch, triggerBranch);
+        console.log(`✅ 成功批量提交 ${results.changed.length} 个文件`);
+      } catch (error) {
+        console.error('❌ 批量提交失败:', error.message);
+        results.failed.push({
+          folder: 'batch-commit',
+          file: 'multiple',
+          error: `批量提交失败: ${error.message}`
+        });
+      }
+    } else {
+      console.log('⏭️  没有文件需要提交，所有文件都未变化');
+    }
+    
     // 输出结果汇总
-    console.log('📊 从S3拉取结果汇总:');
-    console.log('========================');
+    console.log('\n📊 拉取结果汇总:');
+    console.log('================');
     console.log(`✅ 成功: ${results.success.length} 个文件`);
-    console.log(`❌ 失败: ${results.failed.length} 个文件`);
     console.log(`⏭️  跳过: ${results.skipped.length} 个文件`);
+    console.log(`❌ 失败: ${results.failed.length} 个文件`);
+    console.log(`🔄 有变化: ${results.changed.length} 个文件`);
     
     if (results.success.length > 0) {
       console.log('\n✅ 成功拉取的文件:');
       results.success.forEach(result => {
-        console.log(`   📁 ${result.folder}/${result.file} (${result.environment}) → ${result.githubPath}`);
+        console.log(`   📁 ${result.folder}/${result.file} (${result.environment})`);
       });
     }
     
     if (results.skipped.length > 0) {
       console.log('\n⏭️  跳过的文件:');
       results.skipped.forEach(result => {
-        console.log(`   📁 ${result.folder}/${result.file} (${result.environment}): ${result.reason}`);
+        console.log(`   📁 ${result.folder}/${result.file}: ${result.reason}`);
       });
     }
     
     if (results.failed.length > 0) {
       console.log('\n❌ 拉取失败的文件:');
       results.failed.forEach(result => {
-        console.log(`   📁 ${result.folder}/${result.file} (${result.environment}): ${result.error}`);
+        console.log(`   📁 ${result.folder}/${result.file}: ${result.error}`);
         if (result.details) {
           console.log(`      GitHub API状态: ${result.details.status}`);
           if (result.details.data && result.details.data.message) {
@@ -117,7 +166,7 @@ async function pullFromS3() {
   }
 }
 
-async function processEnvironment(folder, environment, bucket, owner, repo, results, branch) {
+async function processEnvironmentBatch(folder, environment, bucket, owner, repo, results, branch) {
   const s3Prefix = environment === 'production' ? folder.s3_prefix_production : folder.s3_prefix_staging;
   
   try {
@@ -167,113 +216,178 @@ async function processEnvironment(folder, environment, bucket, owner, repo, resu
         });
         
         const s3Response = await s3Client.send(getObjectCommand);
-        const fileContent = await streamToString(s3Response.Body);
+        const s3Content = await streamToString(s3Response.Body);
         
-        // 构建GitHub文件路径 - 统一使用当前分支，按环境分类目录
-        let githubFilePath;
+        // 构建本地文件路径
+        let localFilePath;
         if (environment === 'staging' && folder.local_path_staging) {
-          githubFilePath = `${folder.local_path_staging}/${fileName}`;
+          localFilePath = path.join(process.cwd(), folder.local_path_staging, fileName);
         } else if (environment === 'production' && folder.local_path_production) {
-          githubFilePath = `${folder.local_path_production}/${fileName}`;
+          localFilePath = path.join(process.cwd(), folder.local_path_production, fileName);
         } else {
           throw new Error(`文件夹 ${folder.name} 未配置 ${environment} 环境的本地路径`);
         }
         
-        console.log(`         📂 GitHub路径: ${githubFilePath}`);
+        console.log(`         📂 本地路径: ${localFilePath}`);
         
-        // 自动递归创建父目录
-        const placeholderFiles = await ensureGithubDirs(owner, repo, githubFilePath, branch);
+        // 检查本地文件是否存在
+        let localContent = null;
+        let localExists = false;
         
-        // 检查GitHub中是否已存在该文件
-        let currentFile = null;
         try {
-          const response = await octokit.repos.getContent({
-            owner,
-            repo,
-            path: githubFilePath,
-            ref: branch
-          });
-          currentFile = response.data;
-          console.log(`         ✅ GitHub文件已存在`);
+          localContent = fs.readFileSync(localFilePath, 'utf8');
+          localExists = true;
+          console.log(`         ✅ 本地文件存在`);
         } catch (error) {
-          if (error.status === 404) {
-            console.log(`         📄 GitHub文件不存在，将创建新文件`);
+          if (error.code === 'ENOENT') {
+            console.log(`         📄 本地文件不存在，将创建新文件`);
           } else {
-            console.error(`         ❌ GitHub API错误:`, error.message);
             throw error;
           }
         }
         
-        // 计算文件内容的SHA
-        const contentBuffer = Buffer.from(fileContent, 'utf8');
-        const sha = crypto.createHash('sha1').update(contentBuffer).digest('hex');
-        
-        // 强制同步所有文件，不检查内容是否变化
-        // 注释掉内容检查逻辑，确保所有文件都能同步
-        /*
-        if (currentFile && currentFile.sha === sha) {
-          console.log(`         ⏭️  文件内容未变化，跳过`);
-          results.skipped.push({
-            folder: folder.name,
-            file: fileName,
-            environment: environment,
-            reason: '文件内容未变化'
-          });
-          continue;
-        }
-        */
-        
-        // 生成提交信息
-        const commitMessage = `🔄 从S3拉取: ${fileName} (${environment})`;
-        
-        // 更新GitHub文件
-        await octokit.repos.createOrUpdateFileContents({
-          owner,
-          repo,
-          path: githubFilePath,
-          message: commitMessage,
-          content: contentBuffer.toString('base64'),
-          sha: currentFile ? currentFile.sha : undefined,
-          branch: branch
-        });
-        
-        // 删除占位文件
-        if (placeholderFiles.length > 0) {
-          await deletePlaceholderFiles(owner, repo, placeholderFiles, branch);
+        // 比较S3和本地文件内容
+        let contentChanged = false;
+        if (!localExists) {
+          contentChanged = true;
+          console.log(`         🔄 本地文件不存在，需要创建`);
+        } else {
+          // 计算S3和本地文件的哈希值进行比较
+          const s3Hash = crypto.createHash('sha256').update(s3Content).digest('hex');
+          const localHash = crypto.createHash('sha256').update(localContent).digest('hex');
+          
+          if (s3Hash !== localHash) {
+            contentChanged = true;
+            console.log(`         🔄 文件内容已变化 (S3: ${s3Hash.substring(0, 8)}..., 本地: ${localHash.substring(0, 8)}...)`);
+          } else {
+            console.log(`         ⏭️  文件内容未变化，跳过`);
+            results.skipped.push({
+              folder: folder.name,
+              file: fileName,
+              environment: environment,
+              reason: '文件内容未变化'
+            });
+            continue;
+          }
         }
         
-        console.log(`         ✅ 成功拉取: ${fileName} (${environment})`);
+        // 确保本地目录存在
+        const localDir = path.dirname(localFilePath);
+        if (!fs.existsSync(localDir)) {
+          fs.mkdirSync(localDir, { recursive: true });
+          console.log(`         📁 创建本地目录: ${localDir}`);
+        }
+        
+        // 写入本地文件
+        fs.writeFileSync(localFilePath, s3Content, 'utf8');
+        console.log(`         ✅ 成功写入本地文件: ${fileName}`);
+        
+        // 添加到成功列表
         results.success.push({
           folder: folder.name,
           file: fileName,
           environment: environment,
-          githubPath: githubFilePath,
+          localPath: localFilePath,
           s3Key: s3Key,
-          changed: currentFile ? '更新' : '新增'
+          changed: localExists ? '更新' : '新增'
+        });
+        
+        // 添加到批量提交列表
+        results.changed.push({
+          path: localFilePath,
+          content: s3Content,
+          folder: folder.name,
+          fileName: fileName,
+          environment: environment,
+          relativePath: path.relative(process.cwd(), localFilePath)
         });
         
       } catch (error) {
-        console.error(`         ❌ 拉取失败: ${fileName} (${environment})`);
+        console.error(`         ❌ 处理失败: ${fileName} (${environment})`);
         console.error(`           错误详情: ${error.message}`);
-        if (error.response) {
-          console.error(`           GitHub API状态: ${error.response.status}`);
-          console.error(`           GitHub API响应: ${JSON.stringify(error.response.data, null, 2)}`);
-        }
         results.failed.push({
           folder: folder.name,
           file: fileName,
           environment: environment,
-          error: error.message,
-          details: error.response ? {
-            status: error.response.status,
-            data: error.response.data
-          } : null
+          error: error.message
         });
       }
     }
     
   } catch (error) {
     console.error(`   ❌ 处理 ${environment} 环境失败:`, error.message);
+    throw error;
+  }
+}
+
+async function batchCommitFiles(owner, repo, changedFiles, branch, triggerBranch) {
+  try {
+    // 获取当前分支的最新commit SHA
+    const { data: ref } = await octokit.git.getRef({
+      owner,
+      repo,
+      ref: `heads/${branch}`
+    });
+    
+    const baseSha = ref.object.sha;
+    console.log(`📋 当前分支SHA: ${baseSha.substring(0, 8)}...`);
+    
+    // 创建tree items
+    const treeItems = changedFiles.map(file => ({
+      path: file.relativePath,
+      mode: '100644',
+      type: 'blob',
+      content: file.content
+    }));
+    
+    console.log(`🌳 准备创建tree，包含 ${treeItems.length} 个文件`);
+    
+    // 创建tree
+    const { data: tree } = await octokit.git.createTree({
+      owner,
+      repo,
+      base_tree: baseSha,
+      tree: treeItems
+    });
+    
+    console.log(`🌳 创建tree: ${tree.sha.substring(0, 8)}...`);
+    
+    // 生成提交信息
+    const commitMessage = `🔄 从S3批量同步配置文件\n\n` +
+      `📁 同步的文件 (${changedFiles.length} 个):\n` +
+      changedFiles.map(file => `- ${file.folder}/${file.fileName} (${file.environment})`).join('\n') +
+      `\n\n🔗 触发分支: ${triggerBranch}` +
+      `\n⏰ 同步时间: ${new Date().toISOString()}` +
+      `\n📦 S3 Bucket: ${process.env.S3_BUCKET || 'rock-service-data'}`;
+    
+    // 创建commit
+    const { data: commit } = await octokit.git.createCommit({
+      owner,
+      repo,
+      message: commitMessage,
+      tree: tree.sha,
+      parents: [baseSha]
+    });
+    
+    console.log(`📝 创建commit: ${commit.sha.substring(0, 8)}...`);
+    
+    // 更新分支
+    await octokit.git.updateRef({
+      owner,
+      repo,
+      ref: `heads/${branch}`,
+      sha: commit.sha
+    });
+    
+    console.log(`✅ 成功更新分支 ${branch}`);
+    console.log(`📝 提交信息: ${commitMessage.split('\n')[0]}`);
+    
+  } catch (error) {
+    console.error('❌ 批量提交失败:', error.message);
+    if (error.response) {
+      console.error('📋 GitHub API状态:', error.response.status);
+      console.error('📋 GitHub API响应:', error.response.data);
+    }
     throw error;
   }
 }
@@ -286,66 +400,6 @@ async function streamToString(stream) {
     stream.on('error', reject);
     stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
   });
-}
-
-// 删除占位文件
-async function deletePlaceholderFiles(owner, repo, placeholderFiles, branch) {
-  for (const placeholderPath of placeholderFiles) {
-    try {
-      // 获取文件的SHA
-      const response = await octokit.repos.getContent({
-        owner,
-        repo,
-        path: placeholderPath,
-        ref: branch
-      });
-      
-      // 删除占位文件
-      await octokit.repos.deleteFile({
-        owner,
-        repo,
-        path: placeholderPath,
-        message: `chore: remove placeholder ${placeholderPath}`,
-        sha: response.data.sha,
-        branch: branch
-      });
-      
-      console.log(`         🗑️  删除占位文件: ${placeholderPath}`);
-    } catch (error) {
-      // 如果占位文件不存在或删除失败，忽略错误
-      console.log(`         ⚠️  占位文件删除失败: ${placeholderPath} (${error.message})`);
-    }
-  }
-}
-
-// 自动递归创建GitHub父目录
-async function ensureGithubDirs(owner, repo, fullPath, branch) {
-  const dirs = fullPath.split('/').slice(0, -1); // 去掉文件名
-  let cur = '';
-  const placeholderFiles = [];
-  for (const dir of dirs) {
-    cur = cur ? `${cur}/${dir}` : dir;
-    try {
-      await octokit.repos.getContent({ owner, repo, path: cur, ref: branch });
-    } catch (e) {
-      if (e.status === 404) {
-        // 创建README.md占位
-        await octokit.repos.createOrUpdateFileContents({
-          owner,
-          repo,
-          path: `${cur}/README.md`,
-          message: `chore: create ${cur}/README.md for directory placeholder`,
-          content: Buffer.from(`# ${cur}\n\n目录占位文件`).toString('base64'),
-          branch: branch
-        });
-        console.log(`         📁 自动创建GitHub目录: ${cur}`);
-        placeholderFiles.push(`${cur}/README.md`);
-      } else {
-        throw e;
-      }
-    }
-  }
-  return placeholderFiles;
 }
 
 // 如果直接运行此脚本
