@@ -246,9 +246,11 @@ async function syncS3ToGithub(bucket, key, fileInfo, pathInfo, folderManager) {
       }
     }
     
-    // 计算文件内容的SHA
+    // 计算文件内容的Git SHA-1哈希
     const contentBuffer = Buffer.from(fileContent, 'utf8');
-    const sha = crypto.createHash('sha1').update(contentBuffer).digest('hex');
+    const gitBlobHeader = `blob ${contentBuffer.length}\0`;
+    const gitBlob = Buffer.concat([Buffer.from(gitBlobHeader, 'utf8'), contentBuffer]);
+    const sha = crypto.createHash('sha1').update(gitBlob).digest('hex');
     
     // 如果文件内容没有变化，跳过更新
     if (currentFile && currentFile.sha === sha) {

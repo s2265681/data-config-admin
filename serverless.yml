@@ -26,6 +26,8 @@ provider:
             - arn:aws:s3:::rock-service-data/config2/production/*
             - arn:aws:s3:::rock-service-data/config3/staging/*
             - arn:aws:s3:::rock-service-data/config3/production/*
+            - arn:aws:s3:::rock-service-data/config5/staging/*
+            - arn:aws:s3:::rock-service-data/config5/production/*
         - Effect: Allow
           Action:
             - logs:CreateLogGroup
