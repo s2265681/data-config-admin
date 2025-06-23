@@ -1,4 +1,5 @@
 const { S3Client, PutObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const { Octokit } = require('@octokit/rest');
 const FolderManager = require('../utils/folder-manager');
 const crypto = require('crypto');
 const path = require('path');
@@ -8,10 +9,15 @@ const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'ap-southeast-2'
 });
 
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN
+});
+
 async function syncFoldersToS3() {
   try {
     const folderManager = new FolderManager();
     const bucket = process.env.S3_BUCKET || 'rock-service-data';
+    const [owner, repo] = (process.env.GITHUB_REPO || 's2265681/data-config-admin').split('/');
     
     // 根据GitHub分支或环境变量确定环境
     let environment = process.env.ENVIRONMENT;
@@ -32,14 +38,19 @@ async function syncFoldersToS3() {
     console.log(`🌍 区域: ${process.env.AWS_REGION || 'ap-southeast-2'}`);
     console.log(`🔄 同步来源: ${syncSource}`);
     console.log(`🔗 GitHub分支: ${process.env.GITHUB_REF || 'unknown'}`);
+    console.log(`🐙 GitHub仓库: ${owner}/${repo}`);
     console.log('');
     
     const folders = folderManager.getFolders();
     const results = {
       success: [],
       failed: [],
-      skipped: []
+      skipped: [],
+      githubSync: []
     };
+    
+    // 收集需要同步到GitHub的文件
+    const filesToSyncToGitHub = [];
     
     for (const folder of folders) {
       // 动态选择本地路径和S3前缀
@@ -152,6 +163,15 @@ async function syncFoldersToS3() {
                     changed: '从staging复制'
                   });
                   
+                  // 添加到GitHub同步列表
+                  filesToSyncToGitHub.push({
+                    path: `${localPath}/${fileName}`,
+                    content: fileContent,
+                    folder: folder.name,
+                    fileName: fileName,
+                    environment: environment
+                  });
+                  
                   continue;
                 } else {
                   console.log(`      ❌ staging环境也不存在该文件，跳过: ${fileName}`);
@@ -248,6 +268,15 @@ async function syncFoldersToS3() {
             changed: s3Exists ? '是' : '新增'
           });
           
+          // 添加到GitHub同步列表
+          filesToSyncToGitHub.push({
+            path: `${localPath}/${fileName}`,
+            content: fileContent,
+            folder: folder.name,
+            fileName: fileName,
+            environment: environment
+          });
+          
         } catch (error) {
           console.error(`      ❌ 同步失败: ${fileName}`, error.message);
           results.failed.push({
@@ -263,17 +292,109 @@ async function syncFoldersToS3() {
       console.log(`📁 文件夹 ${folder.name} 处理完成\n`);
     }
     
+    // 同步到GitHub master分支
+    if (filesToSyncToGitHub.length > 0 && environment === 'production') {
+      console.log('🐙 开始同步变更文件到GitHub master分支...');
+      console.log('=====================================');
+      
+      try {
+        // 获取当前master分支的最新commit SHA
+        const { data: ref } = await octokit.git.getRef({
+          owner,
+          repo,
+          ref: 'heads/main'
+        });
+        
+        const baseSha = ref.object.sha;
+        console.log(`📋 当前master分支SHA: ${baseSha.substring(0, 8)}...`);
+        
+        // 创建新的commit
+        const treeItems = filesToSyncToGitHub.map(file => ({
+          path: file.path,
+          mode: '100644',
+          type: 'blob',
+          content: file.content
+        }));
+        
+        // 创建tree
+        const { data: tree } = await octokit.git.createTree({
+          owner,
+          repo,
+          base_tree: baseSha,
+          tree: treeItems
+        });
+        
+        console.log(`🌳 创建tree: ${tree.sha.substring(0, 8)}...`);
+        
+        // 创建commit
+        const commitMessage = `🔄 自动同步配置文件到master分支\n\n` +
+          `📁 同步的文件:\n` +
+          filesToSyncToGitHub.map(file => `- ${file.folder}/${file.fileName}`).join('\n') +
+          `\n\n🔗 触发分支: ${process.env.GITHUB_REF || 'unknown'}` +
+          `\n⏰ 同步时间: ${new Date().toISOString()}` +
+          `\n🏷️  环境: ${environment}`;
+        
+        const { data: commit } = await octokit.git.createCommit({
+          owner,
+          repo,
+          message: commitMessage,
+          tree: tree.sha,
+          parents: [baseSha]
+        });
+        
+        console.log(`📝 创建commit: ${commit.sha.substring(0, 8)}...`);
+        
+        // 更新master分支
+        await octokit.git.updateRef({
+          owner,
+          repo,
+          ref: 'heads/main',
+          sha: commit.sha
+        });
+        
+        console.log(`✅ 成功更新master分支`);
+        
+        // 记录GitHub同步结果
+        filesToSyncToGitHub.forEach(file => {
+          results.githubSync.push({
+            folder: file.folder,
+            file: file.fileName,
+            path: file.path,
+            commitSha: commit.sha.substring(0, 8) + '...'
+          });
+        });
+        
+      } catch (error) {
+        console.error('❌ 同步到GitHub失败:', error.message);
+        results.failed.push({
+          folder: 'github-sync',
+          file: 'multiple',
+          error: `GitHub同步失败: ${error.message}`
+        });
+      }
+    }
+    
     // 输出同步结果
-    console.log('📊 基于文件夹的同步结果汇总:');
+    console.log('\n📊 基于文件夹的同步结果汇总:');
     console.log('============================');
     console.log(`✅ 成功: ${results.success.length} 个文件`);
     console.log(`❌ 失败: ${results.failed.length} 个文件`);
     console.log(`⏭️  跳过: ${results.skipped.length} 个文件`);
+    if (results.githubSync.length > 0) {
+      console.log(`🐙 GitHub同步: ${results.githubSync.length} 个文件`);
+    }
     
     if (results.success.length > 0) {
       console.log('\n✅ 成功同步的文件:');
       results.success.forEach(result => {
         console.log(`   📁 ${result.folder}/${result.file} → ${result.s3Key} (${result.changed})`);
+      });
+    }
+    
+    if (results.githubSync.length > 0) {
+      console.log('\n🐙 同步到GitHub的文件:');
+      results.githubSync.forEach(result => {
+        console.log(`   📁 ${result.folder}/${result.file} → ${result.path} (${result.commitSha})`);
       });
     }
     
@@ -299,14 +420,15 @@ async function syncFoldersToS3() {
         const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
         
         for (const folder of folders) {
+          const s3Prefix = environment === 'production' ? folder.s3_prefix_production : folder.s3_prefix_staging;
           const listCommand = new ListObjectsV2Command({
             Bucket: bucket,
-            Prefix: `${folder.s3_prefix}/${environment}/`
+            Prefix: `${s3Prefix}/`
           });
           
           const listResult = await s3Client.send(listCommand);
           if (listResult.Contents && listResult.Contents.length > 0) {
-            console.log(`\n📁 ${folder.name} (${folder.s3_prefix}/${environment}/):`);
+            console.log(`\n📁 ${folder.name} (${s3Prefix}/):`);
             listResult.Contents.forEach(obj => {
               console.log(`   📄 ${obj.Key} (${obj.Size} bytes)`);
             });
@@ -318,7 +440,7 @@ async function syncFoldersToS3() {
     }
     
     console.log('\n🚀 基于文件夹的智能同步完成！');
-    console.log('🔄 同步方向: GitHub → S3 (只同步变更文件)');
+    console.log('🔄 同步方向: GitHub → S3 → GitHub master (只同步变更文件)');
     
     // 如果有失败的文件，返回错误状态
     if (results.failed.length > 0) {

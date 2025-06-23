@@ -10,6 +10,7 @@
     "update-lambda": "node scripts/update-lambda.js",
     "test": "jest",
     "sync-to-s3": "node scripts/sync-folders-to-s3.js",
+    "sync-to-s3-production": "ENVIRONMENT=production node scripts/sync-folders-to-s3.js",
     "pull-from-s3": "node scripts/pull-from-s3.js",
     "monitor": "node scripts/monitor-folders-sync.js",
     "manage-folders": "node scripts/manage-folders.js",
