@@ -91,9 +91,7 @@ jobs:
             echo "⚠️  已存在Pull Request #$existing_pr，跳过创建"
           else
             # 创建新的Pull Request
-            pr_number=$(gh pr create \
-              --title "🔄 Auto-merge: main -> staging" \
-              --body "自动合并main分支到staging分支
+            pr_body="自动合并main分支到staging分支
 
 **触发原因**: main分支有新的提交
 **提交SHA**: ${{ github.sha }}
@@ -101,7 +99,11 @@ jobs:
 **时间**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
 ---
-*此PR由GitHub Actions自动创建*" \
+*此PR由GitHub Actions自动创建*"
+            
+            pr_number=$(gh pr create \
+              --title "🔄 Auto-merge: main -> staging" \
+              --body "$pr_body" \
               --base staging \
               --head main \
               --json number \
@@ -120,14 +122,6 @@ jobs:
             else
               echo "❌ 创建Pull Request失败"
             fi
-          fi
-          
-          # 如果需要，恢复stash的更改
-          if git stash list | grep -q "Auto-stash changes from S3 sync"; then
-            echo "📝 恢复stash的更改..."
-            git checkout main
-            git stash pop
-            echo "✅ stash更改已恢复"
           fi
           
           echo "📋 合并详情:"
