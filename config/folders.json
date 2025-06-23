@@ -73,6 +73,13 @@
         {
           "name": "test.json",
           "description": "test.json"
+        },
+        {
+          "name": "test2.json",
+          "description": "test2.json"
+        }, {
+          "name": "test3.json",
+          "description": "test3.json"
         }
       ]
     }
